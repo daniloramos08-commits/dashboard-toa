@@ -11,7 +11,8 @@ st.title("📊 Dashboard TOA")
 df = pd.read_excel(
     "dados.xlsx",
     sheet_name="ANALÍTICO TOA",
-    engine="openpyxl"
+    engine="openpyxl",
+    header=11   # 👈 ESSA LINHA É A CHAVE
 )
 
 # =========================
