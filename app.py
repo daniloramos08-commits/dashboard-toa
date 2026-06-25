@@ -20,6 +20,25 @@ df = pd.read_excel(
 # =========================
 df.columns = df.columns.str.strip()
 
+# =========================
+# FILTROS
+# =========================
+st.sidebar.header("Filtros")
+
+df_f = df.copy()
+
+if col_status:
+    status_sel = st.sidebar.multiselect("Status", df_f[col_status].unique())
+
+    if status_sel:
+        df_f = df_f[df_f[col_status].isin(status_sel)]
+
+if col_tecnico:
+    tec_sel = st.sidebar.multiselect("Técnico", df[col_tecnico].unique())
+
+    if tec_sel:
+        df_f = df_f[df_f[col_tecnico].isin(tec_sel)]
+
 # padronizar nomes para busca
 col_map = {col.lower(): col for col in df.columns}
 
@@ -40,12 +59,12 @@ col_tempo = get_col("duração")
 # =========================
 col1, col2, col3 = st.columns(3)
 
-total = len(df)
+total = len(df_f)
 
 
 if col_status:
 
-    status_series = df[col_status].astype(str).str.strip().str.lower()
+    status_series = df_f[col_status].astype(str).str.strip().str.lower()
 
     concluidas = status_series.str.contains("conclu").sum()
     canceladas = status_series.str.contains("cancel").sum()
@@ -56,6 +75,9 @@ else:
 
 
 col1.metric("Total", total)
+taxa = (concluidas / total * 100) if total else 0
+st.metric("% Conclusão", f"{taxa:.1f}%")
+``
 col2.metric("Concluídas", concluidas)
 col3.metric("Canceladas", canceladas)
 
@@ -64,10 +86,12 @@ st.divider()
 # =========================
 # GRÁFICOS
 # =========================
-
+if col_tecnico:
+    st.subheader("Top Técnicos")
+    st.bar_chart(df_f[col_tecnico].value_counts().head(10))
 if col_status:
     st.subheader("Status")
-    st.bar_chart(df[col_status].value_counts())
+    st.bar_chart(df_f[col_status].value_counts())
 
 if col_tecnico:
     st.subheader("Top Técnicos")
@@ -81,4 +105,4 @@ if col_tipo:
 # BASE
 # =========================
 st.subheader("Base de dados")
-st.dataframe(df, use_container_width=True)
+st.dataframe(df_f, use_container_width=True)
