@@ -42,12 +42,18 @@ col1, col2, col3 = st.columns(3)
 
 total = len(df)
 
+
 if col_status:
-    concluidas = df[df[col_status].astype(str).str.contains("Conclu", na=False)].shape[0]
-    canceladas = df[df[col_status].astype(str).str.contains("Cancel", na=False)].shape[0]
+
+    status_series = df[col_status].astype(str).str.strip().str.lower()
+
+    concluidas = status_series.str.contains("conclu").sum()
+    canceladas = status_series.str.contains("cancel").sum()
+
 else:
     concluidas = 0
     canceladas = 0
+
 
 col1.metric("Total", total)
 col2.metric("Concluídas", concluidas)
