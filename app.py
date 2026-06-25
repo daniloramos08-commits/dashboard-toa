@@ -5,42 +5,73 @@ st.set_page_config(layout="wide")
 
 st.title("📊 Dashboard TOA")
 
+# =========================
 # CARREGAR DADOS
-df = pd.read_excel("dados.xlsx", sheet_name="ANALÍTICO TOA", engine="openpyxl")
+# =========================
+df = pd.read_excel(
+    "dados.xlsx",
+    sheet_name="ANALÍTICO TOA",
+    engine="openpyxl"
+)
 
-
-# LIMPAR nomes das colunas
+# =========================
+# LIMPEZA (ESSENCIAL)
+# =========================
 df.columns = df.columns.str.strip()
 
-# converter data se existir
-if "Data" in df.columns:
-    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+# padronizar nomes para busca
+col_map = {col.lower(): col for col in df.columns}
 
+def get_col(nome):
+    for c in col_map:
+        if nome in c:
+            return col_map[c]
+    return None
 
-df.columns = df.columns.str.strip()
+col_status = get_col("status")
+col_tecnico = get_col("recurso")
+col_tipo = get_col("atividade")
+col_causa = get_col("causa")
+col_tempo = get_col("duração")
 
-# procurar automaticamente a coluna de tempo
-for col in df.columns:
-    if "tempo" in col.lower():
-        df[col] = pd.to_timedelta(df[col], errors="coerce")
-
-
+# =========================
 # KPIs
+# =========================
 col1, col2, col3 = st.columns(3)
 
-col1.metric("Total", len(df))
-col2.metric("Concluídas", df[df["Status"] == "Concluída"].shape[0])
-col3.metric("Canceladas", df[df["Status"] == "Cancelada"].shape[0])
+total = len(df)
 
+if col_status:
+    concluidas = df[df[col_status].astype(str).str.contains("Conclu", na=False)].shape[0]
+    canceladas = df[df[col_status].astype(str).str.contains("Cancel", na=False)].shape[0]
+else:
+    concluidas = 0
+    canceladas = 0
+
+col1.metric("Total", total)
+col2.metric("Concluídas", concluidas)
+col3.metric("Canceladas", canceladas)
+
+st.divider()
+
+# =========================
 # GRÁFICOS
-st.subheader("Status")
-st.bar_chart(df["Status"].value_counts())
+# =========================
 
-st.subheader("Top Técnicos")
-st.bar_chart(df["Recurso"].value_counts().head(10))
+if col_status:
+    st.subheader("Status")
+    st.bar_chart(df[col_status].value_counts())
 
-st.subheader("Causas")
-st.bar_chart(df["Causa 1"].value_counts().head(10))
+if col_tecnico:
+    st.subheader("Top Técnicos")
+    st.bar_chart(df[col_tecnico].value_counts().head(10))
 
-st.subheader("Base")
-st.dataframe(df)
+if col_tipo:
+    st.subheader("Tipo de Atividade")
+    st.bar_chart(df[col_tipo].value_counts())
+
+# =========================
+# BASE
+# =========================
+st.subheader("Base de dados")
+st.dataframe(df, use_container_width=True)
