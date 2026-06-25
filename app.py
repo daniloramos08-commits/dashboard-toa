@@ -96,4 +96,3 @@ if col_tecnico:
 # =========================
 st.subheader("Base de dados")
 st.dataframe(df_f, use_container_width=True)
-``
