@@ -17,7 +17,13 @@ if "Data" in df.columns:
     df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
 
 
-df["TEMPO TOTAL"] = pd.to_timedelta(df["TEMPO TOTAL"], errors="coerce")
+df.columns = df.columns.str.strip()
+
+# procurar automaticamente a coluna de tempo
+for col in df.columns:
+    if "tempo" in col.lower():
+        df[col] = pd.to_timedelta(df[col], errors="coerce")
+
 
 # KPIs
 col1, col2, col3 = st.columns(3)
