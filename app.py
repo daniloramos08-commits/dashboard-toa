@@ -8,8 +8,15 @@ st.title("📊 Dashboard TOA")
 # CARREGAR DADOS
 df = pd.read_excel("dados.xlsx", sheet_name="ANALÍTICO TOA", engine="openpyxl")
 
-# TRATAMENTO
-df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+
+# LIMPAR nomes das colunas
+df.columns = df.columns.str.strip()
+
+# converter data se existir
+if "Data" in df.columns:
+    df["Data"] = pd.to_datetime(df["Data"], errors="coerce")
+
+
 df["TEMPO TOTAL"] = pd.to_timedelta(df["TEMPO TOTAL"], errors="coerce")
 
 # KPIs
