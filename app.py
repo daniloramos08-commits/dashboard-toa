@@ -106,76 +106,132 @@ def montar_tabela_indicador(indicador):
     regionais = ["SPC", "SP1", "SP2", "SP3", "SP4"]
 
     html = f"""
-    <div style="
-        border:2px solid black;
-        margin-bottom:18px;
-        background:white;
-        box-shadow:0 2px 6px rgba(0,0,0,0.18);
-    ">
-        <table style="
-            border-collapse:collapse;
-            width:100%;
-            font-family:Arial;
-            font-size:13px;
-            text-align:center;
-        ">
+    <html>
+    <head>
+    <style>
+        body {{
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: white;
+        }}
+
+        .bloco {{
+            width: 100%;
+            background: white;
+        }}
+
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+            font-size: 14px;
+            text-align: center;
+            border: 2px solid #000;
+        }}
+
+        th, td {{
+            border: 1px solid #000;
+            padding: 3px 4px;
+            height: 22px;
+            overflow: hidden;
+        }}
+
+        .lateral {{
+            background: #f4b183;
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
+            position: relative;
+        }}
+
+        .texto-lateral {{
+            color: #c00000;
+            font-weight: bold;
+            font-size: 14px;
+            transform: rotate(-45deg);
+            white-space: nowrap;
+            position: absolute;
+            left: 8px;
+            top: 68px;
+        }}
+
+        .cab-vermelho {{
+            background: #c00000;
+            color: white;
+            font-weight: bold;
+        }}
+
+        .mes {{
+            background: #0070c0;
+            color: white;
+            font-weight: bold;
+        }}
+
+        .regional {{
+            background: #f2f2f2;
+            font-weight: bold;
+        }}
+
+        .meta {{
+            background: white;
+            font-weight: bold;
+            vertical-align: middle;
+        }}
+
+        .titulo-indicador {{
+            background: #c00000;
+            color: white;
+            font-weight: bold;
+            font-size: 15px;
+        }}
+    </style>
+    </head>
+
+    <body>
+    <div class="bloco">
+        <table>
             <tr>
-                <th rowspan="3" style="
-                    background:#f4b183;
-                    color:#c00000;
-                    width:130px;
-                    border:1px solid black;
-                    font-weight:bold;
-                    writing-mode:vertical-rl;
-                    transform:rotate(180deg);
-                    font-size:13px;
-                ">
-                    {titulo}
+                <th class="lateral" rowspan="8">
+                    <div class="texto-lateral">{titulo}</div>
                 </th>
-                <th rowspan="2" style="background:#c00000;color:white;border:1px solid black;">REGIONAL</th>
-                <th rowspan="2" style="background:#c00000;color:white;border:1px solid black;">META</th>
-                <th colspan="6" style="background:#c00000;color:white;border:1px solid black;">{titulo}</th>
+
+                <th class="cab-vermelho" rowspan="3" style="width:105px;">REGIONAL</th>
+                <th class="cab-vermelho" rowspan="3" style="width:75px;">META</th>
+                <th class="titulo-indicador" colspan="6">{titulo}</th>
             </tr>
+
             <tr>
-                <th colspan="6" style="background:#c00000;color:white;border:1px solid black;">2026</th>
+                <th class="cab-vermelho" colspan="6">2026</th>
             </tr>
+
             <tr>
     """
 
     for mes in meses:
-        html += f"<th style='background:#0070c0;color:white;border:1px solid black;'>{mes}</th>"
+        html += f"<th class='mes'>{mes}</th>"
 
     html += "</tr>"
 
-    for regional in regionais:
+    for idx, regional in enumerate(regionais):
         html += "<tr>"
 
-        html += f"""
-            <td style='border:1px solid black;font-weight:bold;background:#f2f2f2'>
-                {regional}
-            </td>
-        """
+        html += f"<td class='regional'>{regional}</td>"
 
-        if regional == "SPC":
-            html += f"""
-                <td rowspan='5' style='border:1px solid black;font-weight:bold;background:white'>
-                    {meta}
-                </td>
-            """
+        if idx == 0:
+            html += f"<td class='meta' rowspan='5'>{meta}</td>"
 
         for valor in valores.get(regional, ["0,00%"] * 6):
             cor = cor_celula(titulo, valor, meta)
-            html += f"""
-                <td style='border:1px solid black;background:{cor};'>
-                    {valor}
-                </td>
-            """
+            html += f"<td style='background:{cor};'>{valor}</td>"
 
         html += "</tr>"
 
     html += """
         </table>
     </div>
+    </body>
+    </html>
     """
 
     return html
@@ -336,7 +392,7 @@ for i, indicador in enumerate(indicadores):
     with colunas_wfm[i % 2]:
         components.html(
             montar_tabela_indicador(indicador),
-            height=310,
+            height=220,
             scrolling=False
         )
 
