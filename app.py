@@ -151,8 +151,7 @@ pagina = st.sidebar.radio(
     "Selecione a página",
     [
         "Dashboard TOA",
-        "Indicadores WFM TOA",
-        "Validação Indicadores JUN"
+        "Indicadores WFM TOA"
     ]
 )
 
@@ -709,30 +708,8 @@ if pagina == "Indicadores WFM TOA":
 
     st.stop()
 
-
-# =========================
-# PÁGINA VALIDAÇÃO
-# =========================
-if pagina == "Validação Indicadores JUN":
-
-    st.title("🧪 Validação Indicadores JUN")
-
-    st.info(
-        "Esta página calcula o mês de Junho em tempo real usando a aba ANALÍTICO TOA. "
-        "Use esta tabela para comparar com a aba INDICADORES do Excel."
-    )
-
     df_validacao = gerar_validacao_indicadores_jun(df)
-
-    st.dataframe(
-        df_validacao,
-        use_container_width=True,
-        height=650
-    )
-
-    st.stop()
-
-
+    
 # =========================
 # DASHBOARD TOA
 # =========================
