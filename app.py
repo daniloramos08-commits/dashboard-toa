@@ -265,9 +265,6 @@ if col_status:
 # =========================
 # GRÁFICO TOP TÉCNICOS
 # =========================
-# =========================
-# GRÁFICO TOP TÉCNICOS
-# =========================
 if col_tecnico:
     with graf2:
         st.subheader("Top Técnicos")
@@ -278,7 +275,7 @@ if col_tecnico:
             .astype(str)
             .value_counts()
             .head(10)
-            .sort_values(ascending=True)  # deixa o maior no topo no gráfico horizontal
+            .sort_values(ascending=True)
             .reset_index()
         )
 
@@ -318,47 +315,6 @@ if col_tecnico:
             use_container_width=True,
             key="grafico_tecnico"
         )
-
-        data_tecnico = (
-            df_f[col_tecnico]
-            .dropna()
-            .astype(str)
-            .value_counts()
-            .head(10)
-            .reset_index()
-        )
-
-        data_tecnico.columns = ["Técnico", "Quantidade"]
-
-        fig_tecnico = px.bar(
-            data_tecnico,
-            x="Quantidade",
-            y="Técnico",
-            text="Quantidade",
-            orientation="h",
-            color="Quantidade",
-            color_continuous_scale="Blues"
-        )
-
-        fig_tecnico.update_layout(
-            height=420,
-            showlegend=False,
-            coloraxis_showscale=False,
-            xaxis_title=None,
-            yaxis_title=None,
-            xaxis=dict(showgrid=False, visible=False),
-            yaxis=dict(showgrid=False),
-            margin=dict(l=10, r=10, t=30, b=30)
-        )
-
-        fig_tecnico.update_traces(textposition="outside")
-
-        st.plotly_chart(
-            fig_tecnico,
-            use_container_width=True,
-            key="grafico_tecnico"
-        )
-
 st.divider()
 
 # =========================
