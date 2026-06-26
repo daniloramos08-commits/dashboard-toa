@@ -703,7 +703,7 @@ if pagina == "Indicadores WFM TOA":
         with colunas_wfm[i % 2]:
             components.html(
                 montar_tabela_indicador(indicador),
-                height=190,
+                height=310,
                 scrolling=False
             )
 
