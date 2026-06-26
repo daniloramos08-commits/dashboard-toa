@@ -247,6 +247,7 @@ pagina = st.sidebar.radio(
     [
         "Dashboard TOA",
         "Indicadores WFM TOA"
+        "Validação Indicadores JUN"
     ]
 )
 
@@ -418,6 +419,330 @@ try:
 except Exception as e:
     st.error("Erro ao carregar a aba ANALÍTICO TOA.")
     st.exception(e)
+    st.stop()
+# =========================
+# VALIDAÇÃO INDICADORES JUN
+# =========================
+
+def encontrar_coluna_por_nome(df, nome_exato=None, contem=None):
+    colunas = list(df.columns)
+
+    def norm(txt):
+        txt = str(txt).strip().lower()
+        txt = unicodedata.normalize("NFKD", txt)
+        txt = "".join([c for c in txt if not unicodedata.combining(c)])
+        return txt
+
+    if nome_exato:
+        alvo = norm(nome_exato)
+        for col in colunas:
+            if norm(col) == alvo:
+                return col
+
+    if contem:
+        alvo = norm(contem)
+        for col in colunas:
+            if alvo in norm(col):
+                return col
+
+    return None
+
+
+def formatar_percentual(valor):
+    try:
+        return f"{valor * 100:.2f}%".replace(".", ",")
+    except:
+        return "0,00%"
+
+
+def normalizar_area(valor):
+    valor = str(valor).strip().upper()
+
+    if "SP1" in valor:
+        return "SP1"
+    if "SP2" in valor:
+        return "SP2"
+    if "SP3" in valor:
+        return "SP3"
+    if "SP4" in valor:
+        return "SP4"
+
+    return valor
+
+
+def preparar_base_jun(df):
+    df_calc = df.copy()
+    df_calc.columns = df_calc.columns.str.strip()
+
+    col_mes = encontrar_coluna_por_nome(df_calc, nome_exato="MÊS") or encontrar_coluna_por_nome(df_calc, contem="mes")
+    col_area = encontrar_coluna_por_nome(df_calc, nome_exato="ÁREA") or encontrar_coluna_por_nome(df_calc, contem="area")
+    col_tipo = encontrar_coluna_por_nome(df_calc, nome_exato="Tipo de Atividade") or encontrar_coluna_por_nome(df_calc, contem="atividade")
+    col_status = encontrar_coluna_por_nome(df_calc, nome_exato="Status") or encontrar_coluna_por_nome(df_calc, contem="status")
+
+    if not col_mes or not col_area or not col_tipo or not col_status:
+        st.error("Não foi possível localizar colunas obrigatórias: MÊS, ÁREA, Tipo de Atividade ou Status.")
+        st.write("Colunas encontradas:", list(df_calc.columns))
+        st.stop()
+
+    df_calc["_MES"] = pd.to_numeric(df_calc[col_mes], errors="coerce")
+    df_calc["_AREA_PADRAO"] = df_calc[col_area].apply(normalizar_area)
+    df_calc["_TIPO"] = df_calc[col_tipo].astype(str).str.strip()
+    df_calc["_STATUS"] = df_calc[col_status].astype(str).str.strip()
+
+    # Junho + áreas do indicador final
+    df_calc = df_calc[
+        (df_calc["_MES"] == 6) &
+        (df_calc["_AREA_PADRAO"].isin(["SP1", "SP2", "SP3", "SP4"]))
+    ]
+
+    # Considerar status válidos para WFM
+    df_calc = df_calc[
+        df_calc["_STATUS"].isin(["Concluída", "Não Concluída"])
+    ]
+
+    return df_calc
+
+
+def calcular_percentual_flag(df_base, area, tipos_atividade, coluna_flag):
+    base = df_base[
+        (df_base["_AREA_PADRAO"] == area) &
+        (df_base["_TIPO"].isin(tipos_atividade))
+    ]
+
+    total = len(base)
+
+    if total == 0 or not coluna_flag:
+        return 0
+
+    numerador = pd.to_numeric(base[coluna_flag], errors="coerce").fillna(0).sum()
+
+    return numerador / total
+
+
+def calcular_percentual_nao_tecnico(df_base, area, coluna_nao_tec, coluna_flag_4h):
+    base = df_base[
+        (df_base["_AREA_PADRAO"] == area)
+    ]
+
+    if not coluna_nao_tec or not coluna_flag_4h:
+        return 0
+
+    base = base[
+        base[coluna_nao_tec].astype(str).str.strip().str.upper() != "TECNICA"
+    ]
+
+    total = len(base)
+
+    if total == 0:
+        return 0
+
+    numerador = pd.to_numeric(base[coluna_flag_4h], errors="coerce").fillna(0).sum()
+
+    return numerador / total
+
+
+def calcular_aceitacao_remota(df_base, area, col_remota):
+    base = df_base[
+        (df_base["_AREA_PADRAO"] == area) &
+        (df_base["_TIPO"] == "M Aceitação")
+    ]
+
+    total = len(base)
+
+    if total == 0 or not col_remota:
+        return 0, 0, 0
+
+    sim = base[col_remota].astype(str).str.strip().str.upper().isin(["SIM", "S"]).sum()
+
+    return sim / total, sim, total
+
+
+def calcular_spc_media(resultados_area):
+    valores = [
+        resultados_area.get("SP1", 0),
+        resultados_area.get("SP2", 0),
+        resultados_area.get("SP3", 0),
+        resultados_area.get("SP4", 0)
+    ]
+
+    if len(valores) == 0:
+        return 0
+
+    return sum(valores) / len(valores)
+
+
+def gerar_validacao_indicadores_jun(df):
+    df_jun = preparar_base_jun(df)
+
+    col_prev_5 = encontrar_coluna_por_nome(df_jun, nome_exato="Preventiva <00:05:00") or encontrar_coluna_por_nome(df_jun, contem="preventiva")
+    col_20 = encontrar_coluna_por_nome(df_jun, nome_exato="<00:20:00")
+    col_55 = encontrar_coluna_por_nome(df_jun, nome_exato="<00:55:00")
+    col_aceit_5 = encontrar_coluna_por_nome(df_jun, nome_exato="Aceitação <00:05:00") or encontrar_coluna_por_nome(df_jun, contem="aceitação <00:05")
+    col_sem_desloc = encontrar_coluna_por_nome(df_jun, nome_exato="00:00:00") or encontrar_coluna_por_nome(df_jun, contem="deslocamento")
+    col_4h = encontrar_coluna_por_nome(df_jun, nome_exato=">04:00:00") or encontrar_coluna_por_nome(df_jun, contem="04:00")
+    col_nao_tec = encontrar_coluna_por_nome(df_jun, nome_exato="NÃO TEC") or encontrar_coluna_por_nome(df_jun, contem="nao tec")
+    col_remota = encontrar_coluna_por_nome(df_jun, nome_exato="Remota?") or encontrar_coluna_por_nome(df_jun, contem="remota")
+
+    # Para Corretiva <5min usar coluna genérica <00:05:00,
+    # sem pegar preventiva nem aceitação.
+    col_5_generica = None
+    for col in df_jun.columns:
+        nome = str(col).strip().lower()
+        if nome == "<00:05:00":
+            col_5_generica = col
+            break
+
+    areas = ["SP1", "SP2", "SP3", "SP4"]
+
+    definicoes = [
+        {
+            "indicador": "PREVENTIVAS < 05Min",
+            "meta": "0,0%",
+            "tipo": "flag",
+            "atividades": ["M Preventiva"],
+            "flag": col_prev_5
+        },
+        {
+            "indicador": "PREVENTIVAS < 20Min",
+            "meta": "0,0%",
+            "tipo": "flag",
+            "atividades": ["M Preventiva"],
+            "flag": col_20
+        },
+        {
+            "indicador": "PREVENTIVAS SEM DESLOCAMENTO",
+            "meta": "10,0%",
+            "tipo": "flag",
+            "atividades": ["M Preventiva"],
+            "flag": col_sem_desloc
+        },
+        {
+            "indicador": "CORRETIVA < 5MIN",
+            "meta": "15,0%",
+            "tipo": "flag",
+            "atividades": ["M Corretiva", "M Corretiva Emergencial"],
+            "flag": col_5_generica
+        },
+        {
+            "indicador": "CORRETIVA SEM DESLOCAMENTO",
+            "meta": "15,0%",
+            "tipo": "flag",
+            "atividades": ["M Corretiva", "M Corretiva Emergencial"],
+            "flag": col_sem_desloc
+        },
+        {
+            "indicador": "ACEITAÇÃO < 5MIN",
+            "meta": "0,0%",
+            "tipo": "flag",
+            "atividades": ["M Aceitação"],
+            "flag": col_aceit_5
+        },
+        {
+            "indicador": "ATIVIDADE NÃO TÉCNICAS >4H",
+            "meta": "5,0%",
+            "tipo": "nao_tecnica",
+            "flag": col_4h
+        },
+        {
+            "indicador": "REFEIÇÃO <55MIN",
+            "meta": "0,0%",
+            "tipo": "flag",
+            "atividades": ["Refeição", "MV Refeição"],
+            "flag": col_55
+        },
+        {
+            "indicador": "ACEITAÇÃO REMOTA > 80%",
+            "meta": "80,0%",
+            "tipo": "remota"
+        }
+    ]
+
+    linhas = []
+
+    for definicao in definicoes:
+        indicador = definicao["indicador"]
+        meta = definicao["meta"]
+        tipo = definicao["tipo"]
+
+        resultados_area = {}
+        soma_sim_remota = 0
+        soma_total_remota = 0
+
+        for area in areas:
+            if tipo == "flag":
+                valor = calcular_percentual_flag(
+                    df_jun,
+                    area,
+                    definicao["atividades"],
+                    definicao["flag"]
+                )
+
+            elif tipo == "nao_tecnica":
+                valor = calcular_percentual_nao_tecnico(
+                    df_jun,
+                    area,
+                    col_nao_tec,
+                    definicao["flag"]
+                )
+
+            elif tipo == "remota":
+                valor, sim, total = calcular_aceitacao_remota(
+                    df_jun,
+                    area,
+                    col_remota
+                )
+                soma_sim_remota += sim
+                soma_total_remota += total
+
+            else:
+                valor = 0
+
+            resultados_area[area] = valor
+
+            linhas.append({
+                "Indicador": indicador,
+                "Área": area,
+                "Meta": meta,
+                "JUN Calculado": formatar_percentual(valor)
+            })
+
+        if tipo == "remota":
+            spc = soma_sim_remota / soma_total_remota if soma_total_remota else 0
+        else:
+            spc = calcular_spc_media(resultados_area)
+
+        linhas.insert(
+            len(linhas) - 4,
+            {
+                "Indicador": indicador,
+                "Área": "SPC",
+                "Meta": meta,
+                "JUN Calculado": formatar_percentual(spc)
+            }
+        )
+
+    return pd.DataFrame(linhas)
+    
+# =========================
+# PÁGINA VALIDAÇÃO INDICADORES JUN
+# =========================
+if pagina == "Validação Indicadores JUN":
+
+    st.title("🧪 Validação Indicadores JUN")
+
+    st.info(
+        "Esta página calcula o mês de Junho em tempo real usando a aba ANALÍTICO TOA. "
+        "Use esta tabela para comparar com a aba INDICADORES do Excel antes de alimentar o painel WFM final."
+    )
+
+    df_validacao = gerar_validacao_indicadores_jun(df)
+
+    st.dataframe(
+        df_validacao,
+        use_container_width=True,
+        height=650
+    )
+
     st.stop()
 
 # =========================
