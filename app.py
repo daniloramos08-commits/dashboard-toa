@@ -178,6 +178,6 @@ if col_status and col_area:
 
     fig3.update_traces(textposition="outside")
 
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig3, use_container_width=True, key="grafico_area")
 
     st.plotly_chart(fig3, use_container_width=True)
