@@ -2,6 +2,13 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(layout="wide")
+st.markdown("""
+<style>
+body {
+    background-color: #0f172a;
+}
+</style>
+""", unsafe_allow_html=True)
 
 st.title("📊 Dashboard TOA")
 
@@ -55,6 +62,8 @@ if col_tecnico:
     if tec_sel:
         df_f = df_f[df_f[col_tecnico].isin(tec_sel)]
 
+st.markdown("## 📊 Painel Executivo")
+
 # =========================
 # KPIs
 # =========================
@@ -73,26 +82,54 @@ else:
 
 taxa = (concluidas / total * 100) if total else 0
 
-col1.metric("Total", total)
-col2.metric("Concluídas", concluidas)
-col3.metric("Canceladas", canceladas)
-col4.metric("% Conclusão", f"{taxa:.1f}%")
+# CARDS VISUAIS
+col1.markdown(f"""
+<div style='background:#1e293b;padding:20px;border-radius:10px;text-align:center'>
+<h4>Total</h4>
+<h2>{total}</h2>
+</div>
+""", unsafe_allow_html=True)
 
-st.divider()
+col2.markdown(f"""
+<div style='background:#065f46;padding:20px;border-radius:10px;text-align:center'>
+<h4>Concluídas</h4>
+<h2>{concluidas}</h2>
+</div>
+""", unsafe_allow_html=True)
 
+col3.markdown(f"""
+<div style='background:#7f1d1d;padding:20px;border-radius:10px;text-align:center'>
+<h4>Canceladas</h4>
+<h2>{canceladas}</h2>
+</div>
+""", unsafe_allow_html=True)
+
+col4.markdown(f"""
+<div style='background:#1e40af;padding:20px;border-radius:10px;text-align:center'>
+<h4>% Conclusão</h4>
+<h2>{taxa:.1f}%</h2>
+</div>
+""", unsafe_allow_html=True)
 # =========================
 # GRÁFICOS
 # =========================
+st.markdown("## 📈 Análise")
+
+colA, colB = st.columns(2)
+
 if col_status:
-    st.subheader("Status")
-    st.bar_chart(df_f[col_status].value_counts())
+    with colA:
+        st.subheader("Status das Atividades")
+        st.bar_chart(df_f[col_status].value_counts())
 
 if col_tecnico:
-    st.subheader("Top Técnicos")
-    st.bar_chart(df_f[col_tecnico].value_counts().head(10))
-
+    with colB:
+        st.subheader("Top Técnicos")
+        st.bar_chart(df_f[col_tecnico].value_counts().head(10))
 # =========================
 # BASE
 # =========================
 st.subheader("Base de dados")
-st.dataframe(df_f, use_container_width=True)
+st.markdown("## 📋 Base Detalhada")
+st.dataframe(df_f, use_container_width=True, height=400)
+
