@@ -246,7 +246,7 @@ pagina = st.sidebar.radio(
     "Selecione a página",
     [
         "Dashboard TOA",
-        "Indicadores WFM TOA"
+        "Indicadores WFM TOA",
         "Validação Indicadores JUN"
     ]
 )
