@@ -28,6 +28,12 @@ ARQUIVO = "dados.xlsx"
 ABA_ANALITICO = "ANALÍTICO TOA"
 ABA_WFM = "INDICADORES WFM TOA"
 
+TECNICOS_NOTURNO_AREA = {
+    "ricardo de araujo santos": "SP1",
+    "rafael lopes vieira": "SP3",
+    "renato monteiro soares": "SP4"
+}
+
 # =========================
 # FUNÇÕES GERAIS
 # =========================
@@ -112,19 +118,28 @@ def criar_card(coluna, titulo, valor, cor):
     )
 
 
-def normalizar_area(valor):
-    valor = str(valor).strip().upper()
+def normalizar_area(valor, recurso=None):
+    area = str(valor).strip().upper()
+    recurso_norm = normalizar_texto(recurso) if recurso is not None else ""
 
-    if "SP1" in valor:
+    # Regra especial: técnicos do noturno entram na área real
+    if "NOTURNO" in area:
+        return TECNICOS_NOTURNO_AREA.get(recurso_norm, "NOTURNO")
+
+    # Padronização das áreas
+    if "SPC1" in area or "SP1" in area:
         return "SP1"
-    if "SP2" in valor:
+
+    if "SPC2" in area or "SP2" in area:
         return "SP2"
-    if "SP3" in valor:
+
+    if "SPC3" in area or "SP3" in area:
         return "SP3"
-    if "SP4" in valor:
+
+    if "SPC4" in area or "SP4" in area:
         return "SP4"
 
-    return valor
+    return area
 
 
 # =========================
@@ -166,6 +181,7 @@ except Exception as e:
 # =========================
 # CÁLCULO WFM JUN
 # =========================
+
 def preparar_base_jun(df_base):
     df_calc = df_base.copy()
     df_calc.columns = df_calc.columns.str.strip()
@@ -190,16 +206,28 @@ def preparar_base_jun(df_base):
         or encontrar_coluna_por_nome(df_calc, contem="status")
     )
 
-    if not col_mes or not col_area or not col_tipo or not col_status:
-        st.error("Não foi possível localizar colunas obrigatórias: MÊS, ÁREA, Tipo de Atividade ou Status.")
+    col_recurso = (
+        encontrar_coluna_por_nome(df_calc, nome_exato="Recurso")
+        or encontrar_coluna_por_nome(df_calc, contem="recurso")
+    )
+
+    if not col_mes or not col_area or not col_tipo or not col_status or not col_recurso:
+        st.error("Não foi possível localizar colunas obrigatórias: MÊS, ÁREA, Tipo de Atividade, Status ou Recurso.")
         st.write("Colunas encontradas:", list(df_calc.columns))
         st.stop()
 
     df_calc["_MES"] = pd.to_numeric(df_calc[col_mes], errors="coerce")
-    df_calc["_AREA_PADRAO"] = df_calc[col_area].apply(normalizar_area)
+    df_calc["_RECURSO"] = df_calc[col_recurso].astype(str).str.strip()
     df_calc["_TIPO"] = df_calc[col_tipo].astype(str).str.strip()
     df_calc["_STATUS"] = df_calc[col_status].astype(str).str.strip()
     df_calc["_STATUS_NORM"] = df_calc["_STATUS"].apply(normalizar_texto)
+
+    # Aqui está a correção do NOTURNO:
+    # se a área for NOTURNO, usa o nome do técnico para jogar na área correta.
+    df_calc["_AREA_PADRAO"] = df_calc.apply(
+        lambda linha: normalizar_area(linha[col_area], linha["_RECURSO"]),
+        axis=1
+    )
 
     df_calc = df_calc[
         (df_calc["_MES"] == 6) &
@@ -212,7 +240,6 @@ def preparar_base_jun(df_base):
     ]
 
     return df_calc
-
 
 def calcular_percentual_flag(df_base, area, tipos_atividade, coluna_flag):
     base = df_base[
