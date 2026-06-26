@@ -5,7 +5,7 @@ import unicodedata
 import streamlit.components.v1 as components
 
 # =========================
-# CONFIGURAÇÃO DA PÁGINA
+# CONFIGURAÇÃO
 # =========================
 st.set_page_config(
     page_title="Dashboard TOA",
@@ -13,31 +13,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# =========================
-# ESTILO
-# =========================
 st.markdown(
     """
     <style>
-        .main {
-            background-color: #ffffff;
-        }
-
-        h1, h2, h3 {
-            font-weight: 800;
-        }
-
-        section[data-testid="stSidebar"] {
-            background-color: #f1f5f9;
-        }
+        .main { background-color: #ffffff; }
+        h1, h2, h3 { font-weight: 800; }
+        section[data-testid="stSidebar"] { background-color: #f1f5f9; }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# =========================
-# CONSTANTES
-# =========================
 ARQUIVO = "dados.xlsx"
 ABA_ANALITICO = "ANALÍTICO TOA"
 ABA_WFM = "INDICADORES WFM TOA"
@@ -88,6 +74,24 @@ def encontrar_coluna_por_nome(df_base, nome_exato=None, contem=None):
     return None
 
 
+def encontrar_coluna_5min_corretiva(df_base):
+    candidatas = []
+
+    for col in df_base.columns:
+        nome = normalizar_texto(col).replace(" ", "")
+
+        if "00:05:00" in nome:
+            if "preventiva" not in nome and "aceitacao" not in nome:
+                candidatas.append(col)
+
+    for col in candidatas:
+        nome = normalizar_texto(col).replace(" ", "")
+        if nome.startswith("<00:05:00"):
+            return col
+
+    return candidatas[-1] if candidatas else None
+
+
 def formatar_percentual(valor):
     try:
         return f"{valor * 100:.2f}%".replace(".", ",")
@@ -108,11 +112,9 @@ def cor_celula(titulo, valor, meta):
 
     titulo_norm = normalizar_texto(titulo)
 
-    # Aceitação remota é o único em que quanto maior, melhor
     if "aceitacao remota" in titulo_norm:
         return "#c6efce" if v >= m else "#ffc7ce"
 
-    # Todos os demais indicadores são quanto menor, melhor
     return "#c6efce" if v <= m else "#ffc7ce"
 
 
@@ -143,50 +145,6 @@ def normalizar_area(valor):
     return valor
 
 
-def tempo_para_minutos(valor):
-    try:
-        if pd.isna(valor):
-            return None
-
-        # Se já for timedelta
-        if isinstance(valor, pd.Timedelta):
-            return valor.total_seconds() / 60
-
-        # Se vier como número decimal do Excel
-        if isinstance(valor, (int, float)):
-            return valor * 24 * 60
-
-        texto = str(valor).strip()
-
-        if texto == "":
-            return None
-
-        # Remove dias caso venha como "0 days 00:05:00"
-        if "days" in texto:
-            try:
-                return pd.to_timedelta(texto).total_seconds() / 60
-            except Exception:
-                pass
-
-        partes = texto.split(":")
-
-        if len(partes) == 2:
-            horas = int(partes[0])
-            minutos = int(partes[1])
-            return horas * 60 + minutos
-
-        if len(partes) == 3:
-            horas = int(partes[0])
-            minutos = int(partes[1])
-            segundos = int(float(partes[2]))
-            return horas * 60 + minutos + segundos / 60
-
-        return None
-
-    except Exception:
-        return None
-
-
 # =========================
 # NAVEGAÇÃO
 # =========================
@@ -202,7 +160,7 @@ pagina = st.sidebar.radio(
 )
 
 # =========================
-# VALIDAR ARQUIVO
+# CARREGAR ARQUIVO
 # =========================
 try:
     abas_disponiveis = carregar_excel_abas()
@@ -224,7 +182,7 @@ except Exception as e:
     st.stop()
 
 # =========================
-# CÁLCULO DOS INDICADORES JUN
+# CÁLCULO WFM JUN
 # =========================
 def preparar_base_jun(df_base):
     df_calc = df_base.copy()
@@ -251,7 +209,6 @@ def preparar_base_jun(df_base):
         (df_calc["_AREA_PADRAO"].isin(["SP1", "SP2", "SP3", "SP4"]))
     ]
 
-    # Conforme regra do indicador: concluída e não concluída
     df_calc = df_calc[
         df_calc["_STATUS_NORM"].isin(["concluida", "nao concluida"])
     ]
@@ -271,26 +228,6 @@ def calcular_percentual_flag(df_base, area, tipos_atividade, coluna_flag):
         return 0
 
     numerador = pd.to_numeric(base[coluna_flag], errors="coerce").fillna(0).sum()
-    return numerador / total
-
-
-def calcular_corretiva_menor_5min(df_base, area, coluna_tempo_atividade):
-    base = df_base[
-        (df_base["_AREA_PADRAO"] == area) &
-        (df_base["_TIPO"].isin(["M Corretiva", "M Corretiva Emergencial"]))
-    ]
-
-    total = len(base)
-
-    if total == 0 or not coluna_tempo_atividade:
-        return 0
-
-    tempos_min = base[coluna_tempo_atividade].apply(tempo_para_minutos)
-
-    numerador = tempos_min.apply(
-        lambda x: 1 if x is not None and x < 5 else 0
-    ).sum()
-
     return numerador / total
 
 
@@ -325,7 +262,6 @@ def calcular_aceitacao_remota(df_base, area, col_remota):
         return 0, 0, 0
 
     sim = base[col_remota].astype(str).str.strip().str.upper().isin(["SIM", "S"]).sum()
-
     return sim / total, sim, total
 
 
@@ -336,7 +272,6 @@ def calcular_spc_media(resultados_area):
         resultados_area.get("SP3", 0),
         resultados_area.get("SP4", 0)
     ]
-
     return sum(valores) / len(valores)
 
 
@@ -351,7 +286,9 @@ def gerar_validacao_indicadores_jun(df_base):
     col_4h = encontrar_coluna_por_nome(df_jun, nome_exato=">04:00:00") or encontrar_coluna_por_nome(df_jun, contem="04:00")
     col_nao_tec = encontrar_coluna_por_nome(df_jun, nome_exato="NÃO TEC") or encontrar_coluna_por_nome(df_jun, contem="nao tec")
     col_remota = encontrar_coluna_por_nome(df_jun, nome_exato="Remota?") or encontrar_coluna_por_nome(df_jun, contem="remota")
-    col_tempo_atividade = encontrar_coluna_por_nome(df_jun, nome_exato="TEMPO DE ATIVIDADE") or encontrar_coluna_por_nome(df_jun, contem="tempo de atividade")
+
+    # CORRETIVA <5MIN: usar coluna auxiliar genérica <00:05:00
+    col_5_corretiva = encontrar_coluna_5min_corretiva(df_jun)
 
     areas = ["SP1", "SP2", "SP3", "SP4"]
 
@@ -380,7 +317,9 @@ def gerar_validacao_indicadores_jun(df_base):
         {
             "indicador": "CORRETIVA < 5MIN",
             "meta": "15,0%",
-            "tipo": "corretiva_5min"
+            "tipo": "flag",
+            "atividades": ["M Corretiva", "M Corretiva Emergencial"],
+            "flag": col_5_corretiva
         },
         {
             "indicador": "CORRETIVA SEM DESLOCAMENTO",
@@ -435,13 +374,6 @@ def gerar_validacao_indicadores_jun(df_base):
                     area,
                     definicao["atividades"],
                     definicao["flag"]
-                )
-
-            elif tipo == "corretiva_5min":
-                valor = calcular_corretiva_menor_5min(
-                    df_jun,
-                    area,
-                    col_tempo_atividade
                 )
 
             elif tipo == "nao_tecnica":
