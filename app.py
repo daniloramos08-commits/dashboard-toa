@@ -7,11 +7,13 @@ import unicodedata
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
 st.set_page_config(
-    pagina = st.sidebar.radio(
-    "📌 Navegação",
-    ["Dashboard TOA", "Indicadores WFM TOA"]
+    page_title="Dashboard TOA",
+    layout="wide"
 )
 
+# =========================
+# ESTILO VISUAL
+# =========================
 st.markdown(
     """
     <style>
@@ -22,30 +24,24 @@ st.markdown(
         h1, h2, h3 {
             font-weight: 800;
         }
+
+        section[data-testid="stSidebar"] {
+            background-color: #f1f5f9;
+        }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-st.title("📊 Dashboard TOA")
+# =========================
+# CONSTANTES
+# =========================
+ARQUIVO = "dados.xlsx"
+ABA_ANALITICO = "ANALÍTICO TOA"
+ABA_WFM = "INDICADORES WFM TOA"
 
 # =========================
-# CARREGAR DADOS
-# =========================
-df = pd.read_excel(
-    "dados.xlsx",
-    sheet_name="ANALÍTICO TOA",
-    engine="openpyxl",
-    header=11
-)
-
-# =========================
-# LIMPEZA DAS COLUNAS
-# =========================
-df.columns = df.columns.str.strip()
-
-# =========================
-# FUNÇÃO PARA NORMALIZAR TEXTO
+# FUNÇÕES AUXILIARES
 # =========================
 def normalizar_texto(texto):
     texto = str(texto).strip().lower()
@@ -53,6 +49,130 @@ def normalizar_texto(texto):
     texto = "".join([c for c in texto if not unicodedata.combining(c)])
     return texto
 
+
+@st.cache_data
+def carregar_excel_abas():
+    xls = pd.ExcelFile(ARQUIVO, engine="openpyxl")
+    return xls.sheet_names
+
+
+@st.cache_data
+def carregar_analitico():
+    df = pd.read_excel(
+        ARQUIVO,
+        sheet_name=ABA_ANALITICO,
+        engine="openpyxl",
+        header=11
+    )
+    df.columns = df.columns.str.strip()
+    return df
+
+
+@st.cache_data
+def carregar_wfm():
+    df_wfm = pd.read_excel(
+        ARQUIVO,
+        sheet_name=ABA_WFM,
+        engine="openpyxl",
+        header=None
+    )
+
+    # Remove linhas e colunas totalmente vazias
+    df_wfm = df_wfm.dropna(how="all")
+    df_wfm = df_wfm.dropna(axis=1, how="all")
+
+    return df_wfm
+
+
+def criar_card(coluna, titulo, valor, cor):
+    coluna.markdown(
+        f"<div style='background:{cor};padding:22px;border-radius:12px;text-align:center;color:white'>"
+        f"<h4 style='font-weight:bold;color:white'>{titulo}</h4>"
+        f"<h2 style='font-weight:bold;color:white'>{valor}</h2>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+
+
+# =========================
+# NAVEGAÇÃO
+# =========================
+st.sidebar.markdown("### 📌 Navegação")
+
+pagina = st.sidebar.radio(
+    "Selecione a página",
+    [
+        "Dashboard TOA",
+        "Indicadores WFM TOA"
+    ]
+)
+
+# =========================
+# VALIDAÇÃO DAS ABAS
+# =========================
+try:
+    abas_disponiveis = carregar_excel_abas()
+except Exception as e:
+    st.error("Erro ao abrir o arquivo dados.xlsx.")
+    st.exception(e)
+    st.stop()
+
+# =========================
+# PÁGINA INDICADORES WFM TOA
+# =========================
+if pagina == "Indicadores WFM TOA":
+
+    st.title("📊 Indicadores WFM TOA")
+
+    if ABA_WFM not in abas_disponiveis:
+        st.error(f"A aba '{ABA_WFM}' não foi encontrada no arquivo dados.xlsx.")
+        st.markdown("### Abas encontradas no arquivo:")
+        st.write(abas_disponiveis)
+        st.stop()
+
+    try:
+        df_wfm = carregar_wfm()
+    except Exception as e:
+        st.error("Erro ao carregar a aba INDICADORES WFM TOA.")
+        st.exception(e)
+        st.stop()
+
+    st.markdown("## 📋 Visualização da aba original")
+
+    st.dataframe(
+        df_wfm,
+        use_container_width=True,
+        height=650
+    )
+
+    st.info(
+        "Esta página está exibindo a aba INDICADORES WFM TOA em formato bruto. "
+        "Depois podemos transformar essa aba em cards, metas e blocos visuais iguais ao Excel."
+    )
+
+    st.stop()
+
+# =========================
+# PÁGINA DASHBOARD TOA
+# =========================
+st.title("📊 Dashboard TOA")
+
+if ABA_ANALITICO not in abas_disponiveis:
+    st.error(f"A aba '{ABA_ANALITICO}' não foi encontrada no arquivo dados.xlsx.")
+    st.markdown("### Abas encontradas no arquivo:")
+    st.write(abas_disponiveis)
+    st.stop()
+
+try:
+    df = carregar_analitico()
+except Exception as e:
+    st.error("Erro ao carregar a aba ANALÍTICO TOA.")
+    st.exception(e)
+    st.stop()
+
+# =========================
+# MAPEAR COLUNAS
+# =========================
 colunas_normalizadas = {
     normalizar_texto(col): col for col in df.columns
 }
@@ -68,16 +188,18 @@ def get_col_contem(nome):
             return col_original
     return None
 
-# =========================
-# IDENTIFICAR COLUNAS
-# =========================
 col_status = get_col_exata("Status") or get_col_contem("Status")
 col_tecnico = get_col_exata("Recurso") or get_col_contem("Recurso")
 
-# Área: prioriza a coluna exata ÁREA para não pegar Área de Trabalho
+# Área: prioriza coluna exata ÁREA
 col_area = get_col_exata("Área") or get_col_exata("AREA")
+
 if not col_area:
-    col_area = get_col_contem("área") or get_col_contem("area") or get_col_contem("cidade")
+    col_area = (
+        get_col_contem("área")
+        or get_col_contem("area")
+        or get_col_contem("cidade")
+    )
 
 # Atividade: prioriza Tipo de Atividade
 col_atividade = (
@@ -89,8 +211,9 @@ col_atividade = (
 )
 
 # =========================
-# SIDEBAR - FILTROS EM LISTA
+# SIDEBAR - FILTROS
 # =========================
+st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔎 Filtros")
 
 df_f = df.copy()
@@ -179,37 +302,10 @@ taxa_conclusao = (concluidas / total * 100) if total else 0
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.markdown(
-    f"<div style='background:#1e293b;padding:22px;border-radius:12px;text-align:center;color:white'>"
-    f"<h4 style='font-weight:bold;color:white'>Total</h4>"
-    f"<h2 style='font-weight:bold;color:white'>{total}</h2>"
-    f"</div>",
-    unsafe_allow_html=True
-)
-
-col2.markdown(
-    f"<div style='background:#065f46;padding:22px;border-radius:12px;text-align:center;color:white'>"
-    f"<h4 style='font-weight:bold;color:white'>Concluídas</h4>"
-    f"<h2 style='font-weight:bold;color:white'>{concluidas}</h2>"
-    f"</div>",
-    unsafe_allow_html=True
-)
-
-col3.markdown(
-    f"<div style='background:#7f1d1d;padding:22px;border-radius:12px;text-align:center;color:white'>"
-    f"<h4 style='font-weight:bold;color:white'>Canceladas</h4>"
-    f"<h2 style='font-weight:bold;color:white'>{canceladas}</h2>"
-    f"</div>",
-    unsafe_allow_html=True
-)
-
-col4.markdown(
-    f"<div style='background:#1e40af;padding:22px;border-radius:12px;text-align:center;color:white'>"
-    f"<h4 style='font-weight:bold;color:white'>% Conclusão</h4>"
-    f"<h2 style='font-weight:bold;color:white'>{taxa_conclusao:.1f}%</h2>"
-    f"</div>",
-    unsafe_allow_html=True
-)
+criar_card(col1, "Total", total, "#1e293b")
+criar_card(col2, "Concluídas", concluidas, "#065f46")
+criar_card(col3, "Canceladas", canceladas, "#7f1d1d")
+criar_card(col4, "% Conclusão", f"{taxa_conclusao:.1f}%", "#1e40af")
 
 st.divider()
 
@@ -307,15 +403,14 @@ if col_tecnico:
             margin=dict(l=10, r=10, t=30, b=30)
         )
 
-        fig_tecnico.update_traces(
-            textposition="outside"
-        )
+        fig_tecnico.update_traces(textposition="outside")
 
         st.plotly_chart(
             fig_tecnico,
             use_container_width=True,
             key="grafico_tecnico"
         )
+
 st.divider()
 
 # =========================
@@ -392,7 +487,9 @@ if col_atividade and col_area:
         .index
     )
 
-    df_atividade_area = df_atividade_area[df_atividade_area[col_area].isin(top_areas_atividade)]
+    df_atividade_area = df_atividade_area[
+        df_atividade_area[col_area].isin(top_areas_atividade)
+    ]
 
     fig_atividade_area = px.bar(
         df_atividade_area,
