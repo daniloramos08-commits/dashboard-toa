@@ -148,6 +148,7 @@ st.divider()
 # =========================
 
 # =========================
+# =========================
 # STATUS POR ÁREA
 # =========================
 if col_status and col_area:
@@ -165,10 +166,18 @@ if col_status and col_area:
     )
 
     fig3.update_layout(
+        height=500,  # 🔥 resolve o problema de gráfico achatado
+        showlegend=True,
+        legend_title="Status",
         xaxis_title=None,
         yaxis_title=None,
         yaxis=dict(showgrid=False, visible=False),
-        xaxis=dict(showgrid=False)
+        xaxis=dict(showgrid=False),
+        margin=dict(l=10, r=10, t=40, b=80)
     )
+
+    fig3.update_traces(textposition="outside")
+
+    st.plotly_chart(fig3, use_container_width=True)
 
     st.plotly_chart(fig3, use_container_width=True)
