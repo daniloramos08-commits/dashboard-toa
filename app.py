@@ -577,26 +577,9 @@ def montar_tabela_indicador(indicador):
 
         th, td {{
             border: 1px solid #000;
-            padding: 3px 4px;
-            height: 22px;
+            padding: 4px 4px;
+            height: 24px;
             overflow: hidden;
-        }}
-
-        .lateral {{
-            background: #f4b183;
-            width: 110px;
-            position: relative;
-        }}
-
-        .texto-lateral {{
-            color: #c00000;
-            font-weight: bold;
-            font-size: 12px;
-            transform: rotate(-45deg);
-            white-space: nowrap;
-            position: absolute;
-            left: 5px;
-            top: 68px;
         }}
 
         .cab-vermelho {{
@@ -626,23 +609,23 @@ def montar_tabela_indicador(indicador):
             background: #c00000;
             color: white;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 13px;
         }}
     </style>
     </head>
+
     <body>
         <table>
             <tr>
-                <th class="lateral" rowspan="8">
-                    <div class="texto-lateral">{titulo}</div>
-                </th>
                 <th class="cab-vermelho" rowspan="3">REGIONAL</th>
                 <th class="cab-vermelho" rowspan="3">META</th>
                 <th class="titulo-indicador" colspan="6">{titulo}</th>
             </tr>
+
             <tr>
                 <th class="cab-vermelho" colspan="6">2026</th>
             </tr>
+
             <tr>
     """
 
@@ -653,6 +636,7 @@ def montar_tabela_indicador(indicador):
 
     for idx, regional in enumerate(regionais):
         html += "<tr>"
+
         html += f"<td class='regional'>{regional}</td>"
 
         if idx == 0:
@@ -719,7 +703,7 @@ if pagina == "Indicadores WFM TOA":
         with colunas_wfm[i % 2]:
             components.html(
                 montar_tabela_indicador(indicador),
-                height=240,
+                height=190,
                 scrolling=False
             )
 
