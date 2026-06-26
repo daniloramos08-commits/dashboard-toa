@@ -114,14 +114,14 @@ else:
 taxa = (concluidas / total * 100) if total else 0
 
 # CARDS
-col1.markdown(f"""
+col1.markdown(f""")
 <div style='background:#1e293b;padding:20px;border-radius:10px;text-align:center;color:white'>
 <h4 style='font-weight:bold'>Total</h4>
 <h2 style='font-weight:bold'>{total}</h2>
 </div>
 """, unsafe_allow_html=True)
 
-col2.markdown(f"""
+col2.markdown(f""")
 <div style='background:#065f46;padding:20px;border-radius:10px;text-align:center;color:white'>
 <h4 style='font-weight:bold'>Concluídas</h4>
 <h2 style='font-weight:bold'>{concluidas}</h2>
