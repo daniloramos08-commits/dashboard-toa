@@ -330,16 +330,17 @@ if pagina == "Indicadores WFM TOA":
         },
     ]
 
-    colunas_wfm = st.columns(3)
+colunas_wfm = st.columns(3)
 
-    for i, indicador in enumerate(indicadores):
-        with colunas_wfm[i % 3]:
-            st.markdown(
-                montar_tabela_indicador(indicador),
-                unsafe_allow_html=True
-            )
+for i, indicador in enumerate(indicadores):
+    with colunas_wfm[i % 3]:
+        components.html(
+            montar_tabela_indicador(indicador),
+            height=260,
+            scrolling=False
+        )
 
-    st.stop()
+st.stop()
 
 # =========================
 # PÁGINA DASHBOARD TOA
