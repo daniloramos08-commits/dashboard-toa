@@ -45,6 +45,8 @@ def get_col(nome):
 
 col_status = get_col("status")
 col_tecnico = get_col("recurso")
+col_area = get_col("cidade")
+
 
 # =========================
 # FILTROS
@@ -144,3 +146,29 @@ col4.markdown(
 st.divider()
 
 # =========================
+
+# =========================
+# STATUS POR ÁREA
+# =========================
+if col_status and col_area:
+    st.markdown("## 📊 Status por Área")
+
+    df_group = df_f.groupby([col_area, col_status]).size().reset_index(name="Quantidade")
+
+    fig3 = px.bar(
+        df_group,
+        x=col_area,
+        y="Quantidade",
+        color=col_status,
+        barmode="group",
+        text="Quantidade"
+    )
+
+    fig3.update_layout(
+        xaxis_title=None,
+        yaxis_title=None,
+        yaxis=dict(showgrid=False, visible=False),
+        xaxis=dict(showgrid=False)
+    )
+
+    st.plotly_chart(fig3, use_container_width=True)
