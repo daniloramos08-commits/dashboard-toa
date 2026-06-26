@@ -386,17 +386,22 @@ if pagina == "Indicadores WFM TOA":
         },
     ]
 
-colunas_wfm = st.columns(2)
+# =========================
+# EXIBIR PAINÉIS WFM
+# =========================
+if pagina == "Indicadores WFM TOA":
 
-for i, indicador in enumerate(indicadores):
-    with colunas_wfm[i % 2]:
-        components.html(
-            montar_tabela_indicador(indicador),
-            height=220,
-            scrolling=False
-        )
+    colunas_wfm = st.columns(2)
 
-st.stop()
+    for i, indicador in enumerate(indicadores):
+        with colunas_wfm[i % 2]:
+            components.html(
+                montar_tabela_indicador(indicador),
+                height=240,
+                scrolling=False
+            )
+
+    st.stop()
 
 # =========================
 # PÁGINA DASHBOARD TOA
