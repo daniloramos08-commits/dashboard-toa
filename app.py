@@ -23,6 +23,44 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+# =========================
+# LOGIN
+# =========================
+def verificar_login():
+    if "autenticado" not in st.session_state:
+        st.session_state.autenticado = False
+
+    if st.session_state.autenticado:
+        with st.sidebar:
+            st.success("✅ Usuário conectado")
+            if st.button("Sair"):
+                st.session_state.autenticado = False
+                st.rerun()
+        return
+
+    st.markdown("## 🔐 Acesso Restrito")
+    st.markdown("Informe login e senha para acessar o Dashboard TOA.")
+
+    usuario_correto = st.secrets["auth"]["usuario"]
+    senha_correta = st.secrets["auth"]["senha"]
+
+    with st.form("form_login"):
+        usuario = st.text_input("Login")
+        senha = st.text_input("Senha", type="password")
+        entrar = st.form_submit_button("Entrar")
+
+    if entrar:
+        if usuario == usuario_correto and senha == senha_correta:
+            st.session_state.autenticado = True
+            st.rerun()
+        else:
+            st.error("Login ou senha inválidos.")
+
+    st.stop()
+
+
+verificar_login()
+
 
 ARQUIVO = "dados.xlsx"
 ABA_ANALITICO = "ANALÍTICO TOA"
