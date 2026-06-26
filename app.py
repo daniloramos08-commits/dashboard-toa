@@ -287,10 +287,7 @@ def gerar_validacao_indicadores_jun(df_base):
     col_nao_tec = encontrar_coluna_por_nome(df_jun, nome_exato="NÃO TEC") or encontrar_coluna_por_nome(df_jun, contem="nao tec")
     col_remota = encontrar_coluna_por_nome(df_jun, nome_exato="Remota?") or encontrar_coluna_por_nome(df_jun, contem="remota")
 
-    # CORRETIVA <5MIN: usar coluna auxiliar genérica <00:05:00
-    col_5_corretiva = encontrar_coluna_5min_corretiva(df_jun)
-
-    areas = ["SP1", "SP2", "SP3", "SP4"]
+     areas = ["SP1", "SP2", "SP3", "SP4"]
 
     definicoes = [
         {
@@ -315,11 +312,12 @@ def gerar_validacao_indicadores_jun(df_base):
             "flag": col_sem_desloc
         },
         {
+        {
             "indicador": "CORRETIVA < 5MIN",
             "meta": "15,0%",
             "tipo": "flag",
             "atividades": ["M Corretiva", "M Corretiva Emergencial"],
-            "flag": col_5_corretiva
+            "flag": col_aceit_5
         },
         {
             "indicador": "CORRETIVA SEM DESLOCAMENTO",
