@@ -330,13 +330,13 @@ if pagina == "Indicadores WFM TOA":
         },
     ]
 
-colunas_wfm = st.columns(3)
+colunas_wfm = st.columns(2)
 
 for i, indicador in enumerate(indicadores):
-    with colunas_wfm[i % 3]:
+    with colunas_wfm[i % 2]:
         components.html(
             montar_tabela_indicador(indicador),
-            height=260,
+            height=310,
             scrolling=False
         )
 
