@@ -3,16 +3,18 @@ import streamlit as st
 import plotly.express as px
 import unicodedata
 import streamlit.components.v1 as components
+
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
 st.set_page_config(
     page_title="Dashboard TOA",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # =========================
-# ESTILO VISUAL
+# ESTILO
 # =========================
 st.markdown(
     """
@@ -40,8 +42,9 @@ ARQUIVO = "dados.xlsx"
 ABA_ANALITICO = "ANALÍTICO TOA"
 ABA_WFM = "INDICADORES WFM TOA"
 
+
 # =========================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES GERAIS
 # =========================
 def normalizar_texto(texto):
     texto = str(texto).strip().lower()
@@ -83,7 +86,7 @@ def criar_card(coluna, titulo, valor, cor):
 def valor_para_float(valor):
     try:
         return float(str(valor).replace("%", "").replace(",", "."))
-    except:
+    except Exception:
         return 0
 
 
@@ -125,7 +128,7 @@ def montar_tabela_indicador(indicador):
             border-collapse: collapse;
             width: 100%;
             table-layout: fixed;
-            font-size: 14px;
+            font-size: 12px;
             text-align: center;
             border: 2px solid #000;
         }}
@@ -139,20 +142,20 @@ def montar_tabela_indicador(indicador):
 
         .lateral {{
             background: #f4b183;
-            width: 120px;
-            min-width: 120px;
-            max-width: 120px;
+            width: 110px;
+            min-width: 110px;
+            max-width: 110px;
             position: relative;
         }}
 
         .texto-lateral {{
             color: #c00000;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 12px;
             transform: rotate(-45deg);
             white-space: nowrap;
             position: absolute;
-            left: 8px;
+            left: 5px;
             top: 68px;
         }}
 
@@ -183,7 +186,7 @@ def montar_tabela_indicador(indicador):
             background: #c00000;
             color: white;
             font-weight: bold;
-            font-size: 15px;
+            font-size: 12px;
         }}
     </style>
     </head>
@@ -196,8 +199,8 @@ def montar_tabela_indicador(indicador):
                     <div class="texto-lateral">{titulo}</div>
                 </th>
 
-                <th class="cab-vermelho" rowspan="3" style="width:105px;">REGIONAL</th>
-                <th class="cab-vermelho" rowspan="3" style="width:75px;">META</th>
+                <th class="cab-vermelho" rowspan="3" style="width:95px;">REGIONAL</th>
+                <th class="cab-vermelho" rowspan="3" style="width:70px;">META</th>
                 <th class="titulo-indicador" colspan="6">{titulo}</th>
             </tr>
 
@@ -215,7 +218,6 @@ def montar_tabela_indicador(indicador):
 
     for idx, regional in enumerate(regionais):
         html += "<tr>"
-
         html += f"<td class='regional'>{regional}</td>"
 
         if idx == 0:
@@ -261,6 +263,7 @@ except Exception as e:
     st.exception(e)
     st.stop()
 
+
 # =========================
 # PÁGINA INDICADORES WFM TOA
 # =========================
@@ -270,7 +273,6 @@ if pagina == "Indicadores WFM TOA":
 
     if ABA_WFM not in abas_disponiveis:
         st.error(f"A aba '{ABA_WFM}' não foi encontrada no arquivo dados.xlsx.")
-        st.markdown("### Abas encontradas:")
         st.write(abas_disponiveis)
         st.stop()
 
@@ -338,734 +340,3 @@ if pagina == "Indicadores WFM TOA":
                 "SP1": ["4,49%", "4,49%", "7,92%", "4,55%", "10,64%", "6,76%"],
                 "SP2": ["4,51%", "4,51%", "5,54%", "4,97%", "2,50%", "5,07%"],
                 "SP3": ["1,16%", "1,16%", "2,79%", "2,52%", "4,17%", "3,81%"],
-                "SP4": ["6,98%", "6,98%", "7,56%", "5,44%", "13,13%", "8,20%"],
-            }
-        },
-        {
-            "titulo": "ACEITAÇÃO < 5MIN",
-            "meta": "0,0%",
-            "valores": {
-                "SPC": ["7,37%", "7,37%", "3,16%", "0,61%", "1,56%", "0,37%"],
-                "SP1": ["8,64%", "8,64%", "0,00%", "0,00%", "1,30%", "0,77%"],
-                "SP2": ["2,31%", "2,31%", "9,16%", "0,00%", "0,00%", "0,00%"],
-                "SP3": ["4,55%", "4,55%", "1,19%", "0,00%", "1,28%", "0,00%"],
-                "SP4": ["14,00%", "14,00%", "2,30%", "2,44%", "3,65%", "0,70%"],
-            }
-        },
-        {
-            "titulo": "ATIVIDADE NÃO TÉCNICAS >4H",
-            "meta": "5,0%",
-            "valores": {
-                "SPC": ["7,96%", "7,96%", "4,16%", "6,53%", "1,40%", "4,76%"],
-                "SP1": ["7,14%", "7,14%", "7,14%", "14,29%", "2,44%", "3,23%"],
-                "SP2": ["4,44%", "4,44%", "5,15%", "4,12%", "1,12%", "5,00%"],
-                "SP3": ["16,67%", "16,67%", "2,13%", "7,69%", "0,00%", "10,81%"],
-                "SP4": ["3,57%", "3,57%", "2,22%", "0,00%", "2,04%", "0,00%"],
-            }
-        },
-        {
-            "titulo": "REFEIÇÃO <55MIN",
-            "meta": "0,0%",
-            "valores": {
-                "SPC": ["0,75%", "0,75%", "0,79%", "0,72%", "0,45%", "0,27%"],
-                "SP1": ["0,50%", "0,50%", "1,37%", "1,06%", "0,40%", "0,00%"],
-                "SP2": ["2,06%", "2,06%", "0,80%", "0,00%", "1,40%", "1,07%"],
-                "SP3": ["0,43%", "0,43%", "0,00%", "0,00%", "0,00%", "0,00%"],
-                "SP4": ["0,00%", "0,00%", "0,99%", "1,80%", "0,00%", "0,00%"],
-            }
-        },
-        {
-            "titulo": "ACEITAÇÃO REMOTA > 80%",
-            "meta": "80,0%",
-            "valores": {
-                "SPC": ["0,00%", "0,00%", "0,00%", "0,00%", "73,37%", "81,12%"],
-                "SP1": ["0,00%", "0,00%", "0,00%", "0,00%", "75,97%", "73,08%"],
-                "SP2": ["0,00%", "0,00%", "0,00%", "0,00%", "53,47%", "78,13%"],
-                "SP3": ["0,00%", "0,00%", "0,00%", "0,00%", "74,36%", "91,40%"],
-                "SP4": ["0,00%", "0,00%", "0,00%", "0,00%", "80,37%", "83,10%"],
-            }
-        },
-    ]
-
-# =========================
-# EXIBIR PAINÉIS WFM
-# =========================
-if pagina == "Indicadores WFM TOA":
-
-    colunas_wfm = st.columns(2)
-
-    for i, indicador in enumerate(indicadores):
-        with colunas_wfm[i % 2]:
-            components.html(
-                montar_tabela_indicador(indicador),
-                height=240,
-                scrolling=False
-            )
-
-    st.stop()
-
-# =========================
-# PÁGINA DASHBOARD TOA
-# =========================
-st.title("📊 Dashboard TOA")
-
-if ABA_ANALITICO not in abas_disponiveis:
-    st.error(f"A aba '{ABA_ANALITICO}' não foi encontrada no arquivo dados.xlsx.")
-    st.write(abas_disponiveis)
-    st.stop()
-
-try:
-    df = carregar_analitico()
-except Exception as e:
-    st.error("Erro ao carregar a aba ANALÍTICO TOA.")
-    st.exception(e)
-    st.stop()
-# =========================
-# VALIDAÇÃO INDICADORES JUN
-# =========================
-
-def encontrar_coluna_por_nome(df, nome_exato=None, contem=None):
-    colunas = list(df.columns)
-
-    def norm(txt):
-        txt = str(txt).strip().lower()
-        txt = unicodedata.normalize("NFKD", txt)
-        txt = "".join([c for c in txt if not unicodedata.combining(c)])
-        return txt
-
-    if nome_exato:
-        alvo = norm(nome_exato)
-        for col in colunas:
-            if norm(col) == alvo:
-                return col
-
-    if contem:
-        alvo = norm(contem)
-        for col in colunas:
-            if alvo in norm(col):
-                return col
-
-    return None
-
-
-def formatar_percentual(valor):
-    try:
-        return f"{valor * 100:.2f}%".replace(".", ",")
-    except:
-        return "0,00%"
-
-
-def normalizar_area(valor):
-    valor = str(valor).strip().upper()
-
-    if "SP1" in valor:
-        return "SP1"
-    if "SP2" in valor:
-        return "SP2"
-    if "SP3" in valor:
-        return "SP3"
-    if "SP4" in valor:
-        return "SP4"
-
-    return valor
-
-
-def preparar_base_jun(df):
-    df_calc = df.copy()
-    df_calc.columns = df_calc.columns.str.strip()
-
-    col_mes = encontrar_coluna_por_nome(df_calc, nome_exato="MÊS") or encontrar_coluna_por_nome(df_calc, contem="mes")
-    col_area = encontrar_coluna_por_nome(df_calc, nome_exato="ÁREA") or encontrar_coluna_por_nome(df_calc, contem="area")
-    col_tipo = encontrar_coluna_por_nome(df_calc, nome_exato="Tipo de Atividade") or encontrar_coluna_por_nome(df_calc, contem="atividade")
-    col_status = encontrar_coluna_por_nome(df_calc, nome_exato="Status") or encontrar_coluna_por_nome(df_calc, contem="status")
-
-    if not col_mes or not col_area or not col_tipo or not col_status:
-        st.error("Não foi possível localizar colunas obrigatórias: MÊS, ÁREA, Tipo de Atividade ou Status.")
-        st.write("Colunas encontradas:", list(df_calc.columns))
-        st.stop()
-
-    df_calc["_MES"] = pd.to_numeric(df_calc[col_mes], errors="coerce")
-    df_calc["_AREA_PADRAO"] = df_calc[col_area].apply(normalizar_area)
-    df_calc["_TIPO"] = df_calc[col_tipo].astype(str).str.strip()
-    df_calc["_STATUS"] = df_calc[col_status].astype(str).str.strip()
-
-    # Junho + áreas do indicador final
-    df_calc = df_calc[
-        (df_calc["_MES"] == 6) &
-        (df_calc["_AREA_PADRAO"].isin(["SP1", "SP2", "SP3", "SP4"]))
-    ]
-
-    # Considerar status válidos para WFM
-    df_calc = df_calc[
-        df_calc["_STATUS"].isin(["Concluída", "Não Concluída"])
-    ]
-
-    return df_calc
-
-
-def calcular_percentual_flag(df_base, area, tipos_atividade, coluna_flag):
-    base = df_base[
-        (df_base["_AREA_PADRAO"] == area) &
-        (df_base["_TIPO"].isin(tipos_atividade))
-    ]
-
-    total = len(base)
-
-    if total == 0 or not coluna_flag:
-        return 0
-
-    numerador = pd.to_numeric(base[coluna_flag], errors="coerce").fillna(0).sum()
-
-    return numerador / total
-
-
-def calcular_percentual_nao_tecnico(df_base, area, coluna_nao_tec, coluna_flag_4h):
-    base = df_base[
-        (df_base["_AREA_PADRAO"] == area)
-    ]
-
-    if not coluna_nao_tec or not coluna_flag_4h:
-        return 0
-
-    base = base[
-        base[coluna_nao_tec].astype(str).str.strip().str.upper() != "TECNICA"
-    ]
-
-    total = len(base)
-
-    if total == 0:
-        return 0
-
-    numerador = pd.to_numeric(base[coluna_flag_4h], errors="coerce").fillna(0).sum()
-
-    return numerador / total
-
-
-def calcular_aceitacao_remota(df_base, area, col_remota):
-    base = df_base[
-        (df_base["_AREA_PADRAO"] == area) &
-        (df_base["_TIPO"] == "M Aceitação")
-    ]
-
-    total = len(base)
-
-    if total == 0 or not col_remota:
-        return 0, 0, 0
-
-    sim = base[col_remota].astype(str).str.strip().str.upper().isin(["SIM", "S"]).sum()
-
-    return sim / total, sim, total
-
-
-def calcular_spc_media(resultados_area):
-    valores = [
-        resultados_area.get("SP1", 0),
-        resultados_area.get("SP2", 0),
-        resultados_area.get("SP3", 0),
-        resultados_area.get("SP4", 0)
-    ]
-
-    if len(valores) == 0:
-        return 0
-
-    return sum(valores) / len(valores)
-
-
-def gerar_validacao_indicadores_jun(df):
-    df_jun = preparar_base_jun(df)
-
-    col_prev_5 = encontrar_coluna_por_nome(df_jun, nome_exato="Preventiva <00:05:00") or encontrar_coluna_por_nome(df_jun, contem="preventiva")
-    col_20 = encontrar_coluna_por_nome(df_jun, nome_exato="<00:20:00")
-    col_55 = encontrar_coluna_por_nome(df_jun, nome_exato="<00:55:00")
-    col_aceit_5 = encontrar_coluna_por_nome(df_jun, nome_exato="Aceitação <00:05:00") or encontrar_coluna_por_nome(df_jun, contem="aceitação <00:05")
-    col_sem_desloc = encontrar_coluna_por_nome(df_jun, nome_exato="00:00:00") or encontrar_coluna_por_nome(df_jun, contem="deslocamento")
-    col_4h = encontrar_coluna_por_nome(df_jun, nome_exato=">04:00:00") or encontrar_coluna_por_nome(df_jun, contem="04:00")
-    col_nao_tec = encontrar_coluna_por_nome(df_jun, nome_exato="NÃO TEC") or encontrar_coluna_por_nome(df_jun, contem="nao tec")
-    col_remota = encontrar_coluna_por_nome(df_jun, nome_exato="Remota?") or encontrar_coluna_por_nome(df_jun, contem="remota")
-
-    # Para Corretiva <5min usar coluna genérica <00:05:00,
-    # sem pegar preventiva nem aceitação.
-   col_5_generica = None
-
-candidatas_5min = []
-
-for col in df_jun.columns:
-    nome = normalizar_texto(col).replace(" ", "")
-
-    if "<00:05:00" in nome:
-        if "preventiva" not in nome and "aceitacao" not in nome:
-            candidatas_5min.append(col)
-
-if candidatas_5min:
-    col_5_generica = candidatas_5min[-1]
-
-    areas = ["SP1", "SP2", "SP3", "SP4"]
-
-    definicoes = [
-        {
-            "indicador": "PREVENTIVAS < 05Min",
-            "meta": "0,0%",
-            "tipo": "flag",
-            "atividades": ["M Preventiva"],
-            "flag": col_prev_5
-        },
-        {
-            "indicador": "PREVENTIVAS < 20Min",
-            "meta": "0,0%",
-            "tipo": "flag",
-            "atividades": ["M Preventiva"],
-            "flag": col_20
-        },
-        {
-            "indicador": "PREVENTIVAS SEM DESLOCAMENTO",
-            "meta": "10,0%",
-            "tipo": "flag",
-            "atividades": ["M Preventiva"],
-            "flag": col_sem_desloc
-        },
-        {
-            "indicador": "CORRETIVA < 5MIN",
-            "meta": "15,0%",
-            "tipo": "flag",
-            "atividades": ["M Corretiva", "M Corretiva Emergencial"],
-            "flag": col_5_generica
-        },
-        {
-            "indicador": "CORRETIVA SEM DESLOCAMENTO",
-            "meta": "15,0%",
-            "tipo": "flag",
-            "atividades": ["M Corretiva", "M Corretiva Emergencial"],
-            "flag": col_sem_desloc
-        },
-        {
-            "indicador": "ACEITAÇÃO < 5MIN",
-            "meta": "0,0%",
-            "tipo": "flag",
-            "atividades": ["M Aceitação"],
-            "flag": col_aceit_5
-        },
-        {
-            "indicador": "ATIVIDADE NÃO TÉCNICAS >4H",
-            "meta": "5,0%",
-            "tipo": "nao_tecnica",
-            "flag": col_4h
-        },
-        {
-            "indicador": "REFEIÇÃO <55MIN",
-            "meta": "0,0%",
-            "tipo": "flag",
-            "atividades": ["Refeição", "MV Refeição"],
-            "flag": col_55
-        },
-        {
-            "indicador": "ACEITAÇÃO REMOTA > 80%",
-            "meta": "80,0%",
-            "tipo": "remota"
-        }
-    ]
-
-    linhas = []
-
-    for definicao in definicoes:
-        indicador = definicao["indicador"]
-        meta = definicao["meta"]
-        tipo = definicao["tipo"]
-
-        resultados_area = {}
-        soma_sim_remota = 0
-        soma_total_remota = 0
-
-        for area in areas:
-            if tipo == "flag":
-                valor = calcular_percentual_flag(
-                    df_jun,
-                    area,
-                    definicao["atividades"],
-                    definicao["flag"]
-                )
-
-            elif tipo == "nao_tecnica":
-                valor = calcular_percentual_nao_tecnico(
-                    df_jun,
-                    area,
-                    col_nao_tec,
-                    definicao["flag"]
-                )
-
-            elif tipo == "remota":
-                valor, sim, total = calcular_aceitacao_remota(
-                    df_jun,
-                    area,
-                    col_remota
-                )
-                soma_sim_remota += sim
-                soma_total_remota += total
-
-            else:
-                valor = 0
-
-            resultados_area[area] = valor
-
-            linhas.append({
-                "Indicador": indicador,
-                "Área": area,
-                "Meta": meta,
-                "JUN Calculado": formatar_percentual(valor)
-            })
-
-        if tipo == "remota":
-            spc = soma_sim_remota / soma_total_remota if soma_total_remota else 0
-        else:
-            spc = calcular_spc_media(resultados_area)
-
-        linhas.insert(
-            len(linhas) - 4,
-            {
-                "Indicador": indicador,
-                "Área": "SPC",
-                "Meta": meta,
-                "JUN Calculado": formatar_percentual(spc)
-            }
-        )
-
-    return pd.DataFrame(linhas)
-    
-# =========================
-# PÁGINA VALIDAÇÃO INDICADORES JUN
-# =========================
-if pagina == "Validação Indicadores JUN":
-
-    st.title("🧪 Validação Indicadores JUN")
-
-    st.info(
-        "Esta página calcula o mês de Junho em tempo real usando a aba ANALÍTICO TOA. "
-        "Use esta tabela para comparar com a aba INDICADORES do Excel antes de alimentar o painel WFM final."
-    )
-
-    df_validacao = gerar_validacao_indicadores_jun(df)
-
-    st.dataframe(
-        df_validacao,
-        use_container_width=True,
-        height=650
-    )
-
-    st.stop()
-
-# =========================
-# MAPEAR COLUNAS
-# =========================
-colunas_normalizadas = {
-    normalizar_texto(col): col for col in df.columns
-}
-
-def get_col_exata(nome):
-    nome_norm = normalizar_texto(nome)
-    return colunas_normalizadas.get(nome_norm)
-
-def get_col_contem(nome):
-    nome_norm = normalizar_texto(nome)
-    for col_norm, col_original in colunas_normalizadas.items():
-        if nome_norm in col_norm:
-            return col_original
-    return None
-
-col_status = get_col_exata("Status") or get_col_contem("Status")
-col_tecnico = get_col_exata("Recurso") or get_col_contem("Recurso")
-
-col_area = get_col_exata("Área") or get_col_exata("AREA")
-
-if not col_area:
-    col_area = (
-        get_col_contem("área")
-        or get_col_contem("area")
-        or get_col_contem("cidade")
-    )
-
-col_atividade = (
-    get_col_exata("Tipo de Atividade")
-    or get_col_exata("ATIVIDADE")
-    or get_col_exata("Atividade")
-    or get_col_contem("tipo de atividade")
-    or get_col_contem("atividade")
-)
-
-# =========================
-# FILTROS
-# =========================
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔎 Filtros")
-
-df_f = df.copy()
-
-if col_status:
-    opcoes_status = ["Todos"] + sorted(df[col_status].dropna().astype(str).unique())
-    status_sel = st.sidebar.selectbox("Status", opcoes_status, index=0)
-
-    if status_sel != "Todos":
-        df_f = df_f[df_f[col_status].astype(str) == status_sel]
-
-if col_tecnico:
-    opcoes_tecnico = ["Todos"] + sorted(df[col_tecnico].dropna().astype(str).unique())
-    tecnico_sel = st.sidebar.selectbox("Técnico", opcoes_tecnico, index=0)
-
-    if tecnico_sel != "Todos":
-        df_f = df_f[df_f[col_tecnico].astype(str) == tecnico_sel]
-
-if col_area:
-    opcoes_area = ["Todos"] + sorted(df[col_area].dropna().astype(str).unique())
-    area_sel = st.sidebar.selectbox("Área", opcoes_area, index=0)
-
-    if area_sel != "Todos":
-        df_f = df_f[df_f[col_area].astype(str) == area_sel]
-
-if col_atividade:
-    opcoes_atividade = ["Todos"] + sorted(df[col_atividade].dropna().astype(str).unique())
-    atividade_sel = st.sidebar.selectbox("Atividade", opcoes_atividade, index=0)
-
-    if atividade_sel != "Todos":
-        df_f = df_f[df_f[col_atividade].astype(str) == atividade_sel]
-
-# =========================
-# PAINEL EXECUTIVO
-# =========================
-st.markdown("## 📊 Painel Executivo")
-
-total = len(df_f)
-
-if col_status:
-    status_norm = df_f[col_status].astype(str).apply(normalizar_texto)
-
-    concluidas = (status_norm == "concluida").sum()
-    canceladas = status_norm.str.contains("cancel", na=False).sum()
-else:
-    concluidas = 0
-    canceladas = 0
-
-taxa_conclusao = (concluidas / total * 100) if total else 0
-
-col1, col2, col3, col4 = st.columns(4)
-
-criar_card(col1, "Total", total, "#1e293b")
-criar_card(col2, "Concluídas", concluidas, "#065f46")
-criar_card(col3, "Canceladas", canceladas, "#7f1d1d")
-criar_card(col4, "% Conclusão", f"{taxa_conclusao:.1f}%", "#1e40af")
-
-st.divider()
-
-# =========================
-# GRÁFICOS PRINCIPAIS
-# =========================
-st.markdown("## 📈 Análise Operacional")
-
-graf1, graf2 = st.columns(2)
-
-if col_status:
-    with graf1:
-        st.subheader("Status das Atividades")
-
-        data_status = (
-            df_f[col_status]
-            .dropna()
-            .astype(str)
-            .value_counts()
-            .reset_index()
-        )
-
-        data_status.columns = ["Status", "Quantidade"]
-
-        fig_status = px.bar(
-            data_status,
-            x="Status",
-            y="Quantidade",
-            text="Quantidade",
-            color="Status"
-        )
-
-        fig_status.update_layout(
-            height=420,
-            showlegend=False,
-            xaxis_title=None,
-            yaxis_title=None,
-            yaxis=dict(showgrid=False, visible=False),
-            xaxis=dict(showgrid=False),
-            margin=dict(l=10, r=10, t=30, b=80)
-        )
-
-        fig_status.update_traces(textposition="outside")
-
-        st.plotly_chart(
-            fig_status,
-            use_container_width=True,
-            key="grafico_status"
-        )
-
-if col_tecnico:
-    with graf2:
-        st.subheader("Top Técnicos")
-
-        data_tecnico = (
-            df_f[col_tecnico]
-            .dropna()
-            .astype(str)
-            .value_counts()
-            .head(10)
-            .sort_values(ascending=True)
-            .reset_index()
-        )
-
-        data_tecnico.columns = ["Técnico", "Quantidade"]
-
-        fig_tecnico = px.bar(
-            data_tecnico,
-            x="Quantidade",
-            y="Técnico",
-            text="Quantidade",
-            orientation="h",
-            color="Quantidade",
-            color_continuous_scale="Blues"
-        )
-
-        fig_tecnico.update_layout(
-            height=420,
-            showlegend=False,
-            coloraxis_showscale=False,
-            xaxis_title=None,
-            yaxis_title=None,
-            xaxis=dict(showgrid=False, visible=False),
-            yaxis=dict(
-                showgrid=False,
-                categoryorder="array",
-                categoryarray=data_tecnico["Técnico"].tolist()
-            ),
-            margin=dict(l=10, r=10, t=30, b=30)
-        )
-
-        fig_tecnico.update_traces(textposition="outside")
-
-        st.plotly_chart(
-            fig_tecnico,
-            use_container_width=True,
-            key="grafico_tecnico"
-        )
-
-st.divider()
-
-# =========================
-# STATUS POR ÁREA
-# =========================
-if col_status and col_area:
-    st.markdown("## 📊 Status por Área")
-
-    df_area_status = (
-        df_f
-        .groupby([col_area, col_status])
-        .size()
-        .reset_index(name="Quantidade")
-    )
-
-    top_areas = (
-        df_area_status
-        .groupby(col_area)["Quantidade"]
-        .sum()
-        .nlargest(15)
-        .index
-    )
-
-    df_area_status = df_area_status[df_area_status[col_area].isin(top_areas)]
-
-    fig_area = px.bar(
-        df_area_status,
-        x=col_area,
-        y="Quantidade",
-        color=col_status,
-        text="Quantidade",
-        barmode="stack"
-    )
-
-    fig_area.update_layout(
-        height=520,
-        showlegend=True,
-        legend_title="Status",
-        xaxis_title=None,
-        yaxis_title=None,
-        yaxis=dict(showgrid=False, visible=False),
-        xaxis=dict(showgrid=False, tickangle=-45),
-        margin=dict(l=10, r=10, t=40, b=120)
-    )
-
-    fig_area.update_traces(textposition="inside")
-
-    st.plotly_chart(
-        fig_area,
-        use_container_width=True,
-        key="grafico_status_area"
-    )
-
-st.divider()
-
-# =========================
-# ATIVIDADES POR ÁREA
-# =========================
-if col_atividade and col_area:
-    st.markdown("## 📌 Atividades por Área")
-
-    df_atividade_area = (
-        df_f
-        .groupby([col_area, col_atividade])
-        .size()
-        .reset_index(name="Quantidade")
-    )
-
-    top_areas_atividade = (
-        df_atividade_area
-        .groupby(col_area)["Quantidade"]
-        .sum()
-        .nlargest(15)
-        .index
-    )
-
-    df_atividade_area = df_atividade_area[
-        df_atividade_area[col_area].isin(top_areas_atividade)
-    ]
-
-    fig_atividade_area = px.bar(
-        df_atividade_area,
-        x=col_area,
-        y="Quantidade",
-        color=col_atividade,
-        text="Quantidade",
-        barmode="stack"
-    )
-
-    fig_atividade_area.update_layout(
-        height=520,
-        showlegend=True,
-        legend_title="Atividade",
-        xaxis_title=None,
-        yaxis_title=None,
-        yaxis=dict(showgrid=False, visible=False),
-        xaxis=dict(showgrid=False, tickangle=-45),
-        margin=dict(l=10, r=10, t=40, b=120)
-    )
-
-    fig_atividade_area.update_traces(textposition="inside")
-
-    st.plotly_chart(
-        fig_atividade_area,
-        use_container_width=True,
-        key="grafico_atividade_area"
-    )
-
-st.divider()
-
-# =========================
-# BASE DETALHADA
-# =========================
-st.markdown("## 📋 Base Detalhada")
-
-st.dataframe(
-    df_f,
-    use_container_width=True,
-    height=420
-)
