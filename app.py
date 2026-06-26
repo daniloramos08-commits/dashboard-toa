@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import unicodedata
-
+import streamlit.components.v1 as components
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
