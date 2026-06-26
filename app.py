@@ -7,8 +7,9 @@ import unicodedata
 # CONFIGURAÇÃO DA PÁGINA
 # =========================
 st.set_page_config(
-    page_title="Dashboard TOA",
-    layout="wide"
+    pagina = st.sidebar.radio(
+    "📌 Navegação",
+    ["Dashboard TOA", "Indicadores WFM TOA"]
 )
 
 st.markdown(
