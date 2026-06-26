@@ -585,12 +585,19 @@ def gerar_validacao_indicadores_jun(df):
 
     # Para Corretiva <5min usar coluna genérica <00:05:00,
     # sem pegar preventiva nem aceitação.
-    col_5_generica = None
-    for col in df_jun.columns:
-        nome = str(col).strip().lower()
-        if nome == "<00:05:00":
-            col_5_generica = col
-            break
+   col_5_generica = None
+
+candidatas_5min = []
+
+for col in df_jun.columns:
+    nome = normalizar_texto(col).replace(" ", "")
+
+    if "<00:05:00" in nome:
+        if "preventiva" not in nome and "aceitacao" not in nome:
+            candidatas_5min.append(col)
+
+if candidatas_5min:
+    col_5_generica = candidatas_5min[-1]
 
     areas = ["SP1", "SP2", "SP3", "SP4"]
 
