@@ -128,5 +128,5 @@ col2.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-col3.markdown(f"""
+col3.markdown(f""")
 <div style='background:#7f1d1d;padding:20px;border-radius:10px;text-align:center;color:white'>
