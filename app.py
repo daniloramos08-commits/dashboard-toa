@@ -7,13 +7,16 @@ import plotly.express as px
 # =========================
 st.set_page_config(layout="wide")
 
-st.markdown("""
-<style>
-body {
-    background-color: #0f172a;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #0f172a;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 st.title("📊 Dashboard TOA")
 
@@ -44,7 +47,7 @@ col_status = get_col("status")
 col_tecnico = get_col("recurso")
 
 # =========================
-# FILTROS PROFISSIONAIS
+# FILTROS
 # =========================
 st.sidebar.markdown("### 🔎 Filtros")
 
@@ -53,14 +56,14 @@ df_f = df.copy()
 # STATUS
 if col_status:
     st.sidebar.markdown("**Status**")
-    
+
     opcoes_status = df[col_status].dropna().unique()
-    
+
     selecionar_todos_status = st.sidebar.checkbox(
         "Selecionar todos (Status)",
         value=True
     )
-    
+
     if selecionar_todos_status:
         status_sel = opcoes_status
     else:
@@ -75,14 +78,14 @@ if col_status:
 # TÉCNICO
 if col_tecnico:
     st.sidebar.markdown("**Técnico**")
-    
+
     opcoes_tec = df[col_tecnico].dropna().unique()
-    
+
     selecionar_todos_tec = st.sidebar.checkbox(
         "Selecionar todos (Técnico)",
         value=True
     )
-    
+
     if selecionar_todos_tec:
         tec_sel = opcoes_tec
     else:
@@ -113,20 +116,31 @@ else:
 
 taxa = (concluidas / total * 100) if total else 0
 
-# CARDS
-col1.markdown(f""")
-<div style='background:#1e293b;padding:20px;border-radius:10px;text-align:center;color:white'>
-<h4 style='font-weight:bold'>Total</h4>
-<h2 style='font-weight:bold'>{total}</h2>
-</div>
-""", unsafe_allow_html=True)
+# CARDS (SEM ERRO DE STRING)
+col1.markdown(
+    f"<div style='background:#1e293b;padding:20px;border-radius:10px;text-align:center;color:white'>"
+    f"<h4>Total</h4><h2>{total}</h2></div>",
+    unsafe_allow_html=True
+)
 
-col2.markdown(f""")
-<div style='background:#065f46;padding:20px;border-radius:10px;text-align:center;color:white'>
-<h4 style='font-weight:bold'>Concluídas</h4>
-<h2 style='font-weight:bold'>{concluidas}</h2>
-</div>
-""", unsafe_allow_html=True)
+col2.markdown(
+    f"<div style='background:#065f46;padding:20px;border-radius:10px;text-align:center;color:white'>"
+    f"<h4>Concluídas</h4><h2>{concluidas}</h2></div>",
+    unsafe_allow_html=True
+)
 
-col3.markdown(f""")
-<div style='background:#7f1d1d;padding:20px;border-radius:10px;text-align:center;color:white'>
+col3.markdown(
+    f"<div style='background:#7f1d1d;padding:20px;border-radius:10px;text-align:center;color:white'>"
+    f"<h4>Canceladas</h4><h2>{canceladas}</h2></div>",
+    unsafe_allow_html=True
+)
+
+col4.markdown(
+    f"<div style='background:#1e40af;padding:20px;border-radius:10px;text-align:center;color:white'>"
+    f"<h4>% Conclusão</h4><h2>{taxa:.1f}%</h2></div>",
+    unsafe_allow_html=True
+)
+
+st.divider()
+
+# =========================
