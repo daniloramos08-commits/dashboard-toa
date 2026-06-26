@@ -74,24 +74,6 @@ def encontrar_coluna_por_nome(df_base, nome_exato=None, contem=None):
     return None
 
 
-def encontrar_coluna_5min_corretiva(df_base):
-    candidatas = []
-
-    for col in df_base.columns:
-        nome = normalizar_texto(col).replace(" ", "")
-
-        if "00:05:00" in nome:
-            if "preventiva" not in nome and "aceitacao" not in nome:
-                candidatas.append(col)
-
-    for col in candidatas:
-        nome = normalizar_texto(col).replace(" ", "")
-        if nome.startswith("<00:05:00"):
-            return col
-
-    return candidatas[-1] if candidatas else None
-
-
 def formatar_percentual(valor):
     try:
         return f"{valor * 100:.2f}%".replace(".", ",")
@@ -188,10 +170,25 @@ def preparar_base_jun(df_base):
     df_calc = df_base.copy()
     df_calc.columns = df_calc.columns.str.strip()
 
-    col_mes = encontrar_coluna_por_nome(df_calc, nome_exato="MÊS") or encontrar_coluna_por_nome(df_calc, contem="mes")
-    col_area = encontrar_coluna_por_nome(df_calc, nome_exato="ÁREA") or encontrar_coluna_por_nome(df_calc, contem="area")
-    col_tipo = encontrar_coluna_por_nome(df_calc, nome_exato="Tipo de Atividade") or encontrar_coluna_por_nome(df_calc, contem="atividade")
-    col_status = encontrar_coluna_por_nome(df_calc, nome_exato="Status") or encontrar_coluna_por_nome(df_calc, contem="status")
+    col_mes = (
+        encontrar_coluna_por_nome(df_calc, nome_exato="MÊS")
+        or encontrar_coluna_por_nome(df_calc, contem="mes")
+    )
+
+    col_area = (
+        encontrar_coluna_por_nome(df_calc, nome_exato="ÁREA")
+        or encontrar_coluna_por_nome(df_calc, contem="area")
+    )
+
+    col_tipo = (
+        encontrar_coluna_por_nome(df_calc, nome_exato="Tipo de Atividade")
+        or encontrar_coluna_por_nome(df_calc, contem="atividade")
+    )
+
+    col_status = (
+        encontrar_coluna_por_nome(df_calc, nome_exato="Status")
+        or encontrar_coluna_por_nome(df_calc, contem="status")
+    )
 
     if not col_mes or not col_area or not col_tipo or not col_status:
         st.error("Não foi possível localizar colunas obrigatórias: MÊS, ÁREA, Tipo de Atividade ou Status.")
@@ -209,6 +206,7 @@ def preparar_base_jun(df_base):
         (df_calc["_AREA_PADRAO"].isin(["SP1", "SP2", "SP3", "SP4"]))
     ]
 
+    # Regra WFM: considerar Concluída e Não Concluída
     df_calc = df_calc[
         df_calc["_STATUS_NORM"].isin(["concluida", "nao concluida"])
     ]
@@ -228,6 +226,7 @@ def calcular_percentual_flag(df_base, area, tipos_atividade, coluna_flag):
         return 0
 
     numerador = pd.to_numeric(base[coluna_flag], errors="coerce").fillna(0).sum()
+
     return numerador / total
 
 
@@ -247,6 +246,7 @@ def calcular_percentual_nao_tecnico(df_base, area, coluna_nao_tec, coluna_flag_4
         return 0
 
     numerador = pd.to_numeric(base[coluna_flag_4h], errors="coerce").fillna(0).sum()
+
     return numerador / total
 
 
@@ -262,6 +262,7 @@ def calcular_aceitacao_remota(df_base, area, col_remota):
         return 0, 0, 0
 
     sim = base[col_remota].astype(str).str.strip().str.upper().isin(["SIM", "S"]).sum()
+
     return sim / total, sim, total
 
 
@@ -272,6 +273,7 @@ def calcular_spc_media(resultados_area):
         resultados_area.get("SP3", 0),
         resultados_area.get("SP4", 0)
     ]
+
     return sum(valores) / len(valores)
 
 
@@ -282,12 +284,28 @@ def gerar_validacao_indicadores_jun(df_base):
     col_20 = encontrar_coluna_por_nome(df_jun, nome_exato="<00:20:00")
     col_55 = encontrar_coluna_por_nome(df_jun, nome_exato="<00:55:00")
     col_aceit_5 = encontrar_coluna_por_nome(df_jun, nome_exato="Aceitação <00:05:00")
-    col_sem_desloc = encontrar_coluna_por_nome(df_jun, nome_exato="00:00:00") or encontrar_coluna_por_nome(df_jun, contem="deslocamento")
-    col_4h = encontrar_coluna_por_nome(df_jun, nome_exato=">04:00:00") or encontrar_coluna_por_nome(df_jun, contem="04:00")
-    col_nao_tec = encontrar_coluna_por_nome(df_jun, nome_exato="NÃO TEC") or encontrar_coluna_por_nome(df_jun, contem="nao tec")
-    col_remota = encontrar_coluna_por_nome(df_jun, nome_exato="Remota?") or encontrar_coluna_por_nome(df_jun, contem="remota")
 
-     areas = ["SP1", "SP2", "SP3", "SP4"]
+    col_sem_desloc = (
+        encontrar_coluna_por_nome(df_jun, nome_exato="00:00:00")
+        or encontrar_coluna_por_nome(df_jun, contem="deslocamento")
+    )
+
+    col_4h = (
+        encontrar_coluna_por_nome(df_jun, nome_exato=">04:00:00")
+        or encontrar_coluna_por_nome(df_jun, contem="04:00")
+    )
+
+    col_nao_tec = (
+        encontrar_coluna_por_nome(df_jun, nome_exato="NÃO TEC")
+        or encontrar_coluna_por_nome(df_jun, contem="nao tec")
+    )
+
+    col_remota = (
+        encontrar_coluna_por_nome(df_jun, nome_exato="Remota?")
+        or encontrar_coluna_por_nome(df_jun, contem="remota")
+    )
+
+    areas = ["SP1", "SP2", "SP3", "SP4"]
 
     definicoes = [
         {
@@ -311,7 +329,6 @@ def gerar_validacao_indicadores_jun(df_base):
             "atividades": ["M Preventiva"],
             "flag": col_sem_desloc
         },
-        {
         {
             "indicador": "CORRETIVA < 5MIN",
             "meta": "15,0%",
@@ -388,6 +405,7 @@ def gerar_validacao_indicadores_jun(df_base):
                     area,
                     col_remota
                 )
+
                 soma_sim_remota += sim
                 soma_total_remota += total
 
