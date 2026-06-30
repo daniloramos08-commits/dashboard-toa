@@ -880,11 +880,18 @@ if pagina == "Produtividade":
         else:
             return "background-color: #ff0000; color: white; font-weight: bold; text-align: center;"
 
-    st.dataframe(
-        matriz_formatada.style.applymap(cor_produtividade),
-        use_container_width=True,
-        height=520
-    )
+   styler_matriz = matriz_formatada.style
+
+try:
+    styler_matriz = styler_matriz.map(cor_produtividade)
+except AttributeError:
+    styler_matriz = styler_matriz.applymap(cor_produtividade)
+
+st.dataframe(
+    styler_matriz,
+    use_container_width=True,
+    height=520
+)
 
     st.divider()
 
