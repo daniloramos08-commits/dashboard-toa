@@ -3,6 +3,7 @@ import streamlit as st
 import plotly.express as px
 import unicodedata
 import streamlit.components.v1 as components
+import hmac
 
 # =========================
 # CONFIGURAÇÃO
@@ -23,6 +24,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 # =========================
 # LOGIN
 # =========================
@@ -41,16 +43,23 @@ def verificar_login():
     st.markdown("## 🔐 Acesso Restrito")
     st.markdown("Informe login e senha para acessar o Dashboard TOA.")
 
-    usuario_correto = st.secrets["auth"]["usuario"]
-    senha_correta = st.secrets["auth"]["senha"]
+    try:
+        usuario_correto = st.secrets["auth"]["usuario"]
+        senha_correta = st.secrets["auth"]["senha"]
+    except Exception:
+        st.error("Credenciais não configuradas no Streamlit Secrets.")
+        st.stop()
 
-    with st.form("form_login"):
+    with st.form("login_form"):
         usuario = st.text_input("Login")
         senha = st.text_input("Senha", type="password")
         entrar = st.form_submit_button("Entrar")
 
     if entrar:
-        if usuario == usuario_correto and senha == senha_correta:
+        usuario_ok = hmac.compare_digest(usuario, usuario_correto)
+        senha_ok = hmac.compare_digest(senha, senha_correta)
+
+        if usuario_ok and senha_ok:
             st.session_state.autenticado = True
             st.rerun()
         else:
@@ -61,7 +70,9 @@ def verificar_login():
 
 verificar_login()
 
-
+# =========================
+# CONSTANTES
+# =========================
 ARQUIVO = "dados.xlsx"
 ABA_ANALITICO = "ANALÍTICO TOA"
 ABA_WFM = "INDICADORES WFM TOA"
@@ -160,11 +171,9 @@ def normalizar_area(valor, recurso=None):
     area = str(valor).strip().upper()
     recurso_norm = normalizar_texto(recurso) if recurso is not None else ""
 
-    # Regra especial: técnicos do noturno entram na área real
     if "NOTURNO" in area:
         return TECNICOS_NOTURNO_AREA.get(recurso_norm, "NOTURNO")
 
-    # Padronização das áreas
     if "SPC1" in area or "SP1" in area:
         return "SP1"
 
@@ -179,7 +188,6 @@ def normalizar_area(valor, recurso=None):
 
     return area
 
-
 # =========================
 # NAVEGAÇÃO
 # =========================
@@ -189,7 +197,8 @@ pagina = st.sidebar.radio(
     "Selecione a página",
     [
         "Dashboard TOA",
-        "Indicadores WFM TOA"
+        "Indicadores WFM TOA",
+        "Produtividade"
     ]
 )
 
@@ -218,7 +227,6 @@ except Exception as e:
 # =========================
 # CÁLCULO WFM JUN
 # =========================
-
 def preparar_base_jun(df_base):
     df_calc = df_base.copy()
     df_calc.columns = df_calc.columns.str.strip()
@@ -259,8 +267,6 @@ def preparar_base_jun(df_base):
     df_calc["_STATUS"] = df_calc[col_status].astype(str).str.strip()
     df_calc["_STATUS_NORM"] = df_calc["_STATUS"].apply(normalizar_texto)
 
-    # Aqui está a correção do NOTURNO:
-    # se a área for NOTURNO, usa o nome do técnico para jogar na área correta.
     df_calc["_AREA_PADRAO"] = df_calc.apply(
         lambda linha: normalizar_area(linha[col_area], linha["_RECURSO"]),
         axis=1
@@ -271,12 +277,12 @@ def preparar_base_jun(df_base):
         (df_calc["_AREA_PADRAO"].isin(["SP1", "SP2", "SP3", "SP4"]))
     ]
 
-    # Regra WFM: considerar Concluída e Não Concluída
     df_calc = df_calc[
         df_calc["_STATUS_NORM"].isin(["concluida", "nao concluida"])
     ]
 
     return df_calc
+
 
 def calcular_percentual_flag(df_base, area, tipos_atividade, coluna_flag):
     base = df_base[
@@ -501,7 +507,6 @@ def gerar_validacao_indicadores_jun(df_base):
 
     return pd.DataFrame(linhas)
 
-
 # =========================
 # HISTÓRICO WFM JAN-MAI
 # =========================
@@ -650,7 +655,6 @@ def montar_tabela_indicador(indicador):
         }}
     </style>
     </head>
-
     <body>
         <table>
             <tr>
@@ -658,11 +662,9 @@ def montar_tabela_indicador(indicador):
                 <th class="cab-vermelho" rowspan="3">META</th>
                 <th class="titulo-indicador" colspan="6">{titulo}</th>
             </tr>
-
             <tr>
                 <th class="cab-vermelho" colspan="6">2026</th>
             </tr>
-
             <tr>
     """
 
@@ -673,7 +675,6 @@ def montar_tabela_indicador(indicador):
 
     for idx, regional in enumerate(regionais):
         html += "<tr>"
-
         html += f"<td class='regional'>{regional}</td>"
 
         if idx == 0:
@@ -746,8 +747,226 @@ if pagina == "Indicadores WFM TOA":
 
     st.stop()
 
-    df_validacao = gerar_validacao_indicadores_jun(df)
-    
+
+# =========================
+# PÁGINA PRODUTIVIDADE
+# =========================
+if pagina == "Produtividade":
+
+    st.title("📊 Produtividade")
+
+    col_recurso = encontrar_coluna_por_nome(df, nome_exato="Recurso") or encontrar_coluna_por_nome(df, contem="recurso")
+    col_status = encontrar_coluna_por_nome(df, nome_exato="Status") or encontrar_coluna_por_nome(df, contem="status")
+    col_data = encontrar_coluna_por_nome(df, nome_exato="Data") or encontrar_coluna_por_nome(df, contem="data")
+    col_tipo = encontrar_coluna_por_nome(df, nome_exato="Tipo de Atividade") or encontrar_coluna_por_nome(df, contem="atividade")
+    col_area = encontrar_coluna_por_nome(df, nome_exato="ÁREA") or encontrar_coluna_por_nome(df, contem="area")
+
+    if not col_recurso or not col_status or not col_data or not col_tipo or not col_area:
+        st.error("Não foi possível localizar as colunas necessárias para produtividade.")
+        st.write("Colunas encontradas:", list(df.columns))
+        st.stop()
+
+    df_prod = df.copy()
+
+    df_prod["_TECNICO"] = df_prod[col_recurso].astype(str).str.strip()
+    df_prod["_STATUS"] = df_prod[col_status].astype(str).str.strip()
+    df_prod["_STATUS_NORM"] = df_prod["_STATUS"].apply(normalizar_texto)
+    df_prod["_TIPO"] = df_prod[col_tipo].astype(str).str.strip()
+    df_prod["_TIPO_NORM"] = df_prod["_TIPO"].apply(normalizar_texto)
+    df_prod["_DATA"] = pd.to_datetime(df_prod[col_data], errors="coerce", dayfirst=True)
+
+    df_prod["_AREA_PADRAO"] = df_prod.apply(
+        lambda linha: normalizar_area(linha[col_area], linha["_TECNICO"]),
+        axis=1
+    )
+
+    df_prod = df_prod[df_prod["_DATA"].notna()]
+    df_prod = df_prod[df_prod["_AREA_PADRAO"].isin(["SP1", "SP2", "SP3", "SP4"])]
+
+    # Excluir refeição da produtividade
+    df_prod = df_prod[
+        ~df_prod["_TIPO_NORM"].isin(["refeicao", "mv refeicao"])
+    ]
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔎 Filtros Produtividade")
+
+    areas_prod = ["Todos"] + sorted(df_prod["_AREA_PADRAO"].dropna().unique())
+    area_sel_prod = st.sidebar.selectbox("Área Produtividade", areas_prod, index=0)
+
+    if area_sel_prod != "Todos":
+        df_prod = df_prod[df_prod["_AREA_PADRAO"] == area_sel_prod]
+
+    tecnicos_prod = ["Todos"] + sorted(df_prod["_TECNICO"].dropna().unique())
+    tecnico_sel_prod = st.sidebar.selectbox("Técnico Produtividade", tecnicos_prod, index=0)
+
+    if tecnico_sel_prod != "Todos":
+        df_prod = df_prod[df_prod["_TECNICO"] == tecnico_sel_prod]
+
+    data_min = df_prod["_DATA"].min()
+    data_max = df_prod["_DATA"].max()
+
+    if pd.notna(data_min) and pd.notna(data_max):
+        periodo = st.sidebar.date_input(
+            "Período",
+            [data_min.date(), data_max.date()]
+        )
+
+        if isinstance(periodo, list) and len(periodo) == 2:
+            data_ini = pd.to_datetime(periodo[0])
+            data_fim = pd.to_datetime(periodo[1])
+            df_prod = df_prod[
+                (df_prod["_DATA"] >= data_ini) &
+                (df_prod["_DATA"] <= data_fim)
+            ]
+
+    total_recebidas = len(df_prod)
+    total_concluidas = (df_prod["_STATUS_NORM"] == "concluida").sum()
+    produtividade_geral = total_concluidas / total_recebidas if total_recebidas else 0
+    tecnicos_ativos = df_prod["_TECNICO"].nunique()
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    criar_card(col1, "Recebidas", total_recebidas, "#1e293b")
+    criar_card(col2, "Concluídas", total_concluidas, "#065f46")
+    criar_card(col3, "Produtividade", f"{produtividade_geral * 100:.1f}%", "#1e40af")
+    criar_card(col4, "Técnicos Ativos", tecnicos_ativos, "#7c3aed")
+
+    st.divider()
+
+    st.markdown("## 📅 Matriz de Produtividade por Técnico x Dia")
+
+    df_prod["_DIA_LABEL"] = df_prod["_DATA"].dt.strftime("%d/%b").str.lower()
+
+    agrupado = (
+        df_prod
+        .groupby(["_AREA_PADRAO", "_TECNICO", "_DIA_LABEL"])
+        .agg(
+            Recebidas=("_TIPO", "count"),
+            Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
+        )
+        .reset_index()
+    )
+
+    agrupado["Produtividade"] = agrupado["Concluidas"] / agrupado["Recebidas"]
+
+    matriz = agrupado.pivot_table(
+        index="_TECNICO",
+        columns="_DIA_LABEL",
+        values="Produtividade",
+        aggfunc="mean"
+    )
+
+    matriz_formatada = matriz.copy()
+
+    for col in matriz_formatada.columns:
+        matriz_formatada[col] = matriz_formatada[col].apply(
+            lambda x: "SEM ATV" if pd.isna(x) else f"{x * 100:.0f}%"
+        )
+
+    def cor_produtividade(valor):
+        if valor == "SEM ATV":
+            return "background-color: #808080; color: white; font-weight: bold; text-align: center;"
+
+        try:
+            numero = float(str(valor).replace("%", "").replace(",", "."))
+        except Exception:
+            return ""
+
+        if numero >= 80:
+            return "background-color: #00b050; color: white; font-weight: bold; text-align: center;"
+        elif numero >= 50:
+            return "background-color: #ffff00; color: black; font-weight: bold; text-align: center;"
+        else:
+            return "background-color: #ff0000; color: white; font-weight: bold; text-align: center;"
+
+    st.dataframe(
+        matriz_formatada.style.applymap(cor_produtividade),
+        use_container_width=True,
+        height=520
+    )
+
+    st.divider()
+
+    st.markdown("## 📋 Detalhamento por Tipo de Atividade")
+
+    detalhe = (
+        df_prod
+        .groupby(["_AREA_PADRAO", "_TECNICO", "_DIA_LABEL", "_TIPO"])
+        .agg(
+            Recebidas=("_TIPO", "count"),
+            Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
+        )
+        .reset_index()
+    )
+
+    detalhe["Produtividade"] = detalhe.apply(
+        lambda linha: linha["Concluidas"] / linha["Recebidas"] if linha["Recebidas"] else 0,
+        axis=1
+    )
+
+    detalhe["Produtividade"] = detalhe["Produtividade"].apply(
+        lambda x: f"{x * 100:.0f}%"
+    )
+
+    detalhe = detalhe.rename(
+        columns={
+            "_AREA_PADRAO": "Área",
+            "_TECNICO": "Técnico",
+            "_DIA_LABEL": "Dia",
+            "_TIPO": "Tipo de Atividade"
+        }
+    )
+
+    st.dataframe(
+        detalhe,
+        use_container_width=True,
+        height=450
+    )
+
+    st.divider()
+
+    st.markdown("## 🏆 Ranking de Produtividade por Técnico")
+
+    ranking = (
+        df_prod
+        .groupby(["_TECNICO"])
+        .agg(
+            Recebidas=("_TIPO", "count"),
+            Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
+        )
+        .reset_index()
+    )
+
+    ranking["Produtividade"] = ranking["Concluidas"] / ranking["Recebidas"]
+    ranking = ranking.sort_values("Produtividade", ascending=True).tail(15)
+
+    fig_rank = px.bar(
+        ranking,
+        x="Produtividade",
+        y="_TECNICO",
+        orientation="h",
+        text=ranking["Produtividade"].apply(lambda x: f"{x * 100:.0f}%"),
+        color="Produtividade",
+        color_continuous_scale="Greens"
+    )
+
+    fig_rank.update_layout(
+        height=500,
+        showlegend=False,
+        coloraxis_showscale=False,
+        xaxis_title=None,
+        yaxis_title=None,
+        xaxis=dict(showgrid=False, visible=False),
+        yaxis=dict(showgrid=False),
+        margin=dict(l=10, r=10, t=30, b=30)
+    )
+
+    st.plotly_chart(fig_rank, use_container_width=True, key="ranking_produtividade")
+
+    st.stop()
+
+
 # =========================
 # DASHBOARD TOA
 # =========================
@@ -785,9 +1004,6 @@ col_atividade = (
     or get_col_contem("atividade")
 )
 
-# =========================
-# FILTROS
-# =========================
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔎 Filtros")
 
@@ -821,9 +1037,6 @@ if col_atividade:
     if atividade_sel != "Todos":
         df_f = df_f[df_f[col_atividade].astype(str) == atividade_sel]
 
-# =========================
-# CARDS
-# =========================
 st.markdown("## 📊 Painel Executivo")
 
 total = len(df_f)
@@ -847,9 +1060,6 @@ criar_card(col4, "% Conclusão", f"{taxa_conclusao:.1f}%", "#1e40af")
 
 st.divider()
 
-# =========================
-# GRÁFICOS
-# =========================
 with st.expander("📈 Análise Operacional", expanded=True):
 
     graf1, graf2 = st.columns(2)
@@ -930,9 +1140,6 @@ with st.expander("📈 Análise Operacional", expanded=True):
 
 st.divider()
 
-# =========================
-# STATUS POR ÁREA
-# =========================
 if col_status and col_area:
     st.markdown("## 📊 Status por Área")
 
@@ -974,9 +1181,6 @@ if col_status and col_area:
 
 st.divider()
 
-# =========================
-# ATIVIDADES POR ÁREA
-# =========================
 if col_atividade and col_area:
     st.markdown("## 📌 Atividades por Área")
 
@@ -1018,9 +1222,6 @@ if col_atividade and col_area:
 
 st.divider()
 
-# =========================
-# BASE DETALHADA
-# =========================
 st.markdown("## 📋 Base Detalhada")
 
 st.dataframe(
