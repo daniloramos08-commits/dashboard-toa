@@ -5,6 +5,15 @@ import unicodedata
 import streamlit.components.v1 as components
 import hmac
 
+try:
+    from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode, JsCode
+except Exception:
+    AgGrid = None
+    GridOptionsBuilder = None
+    GridUpdateMode = None
+    DataReturnMode = None
+    JsCode = None
+
 # =========================
 # CONFIGURAÇÃO
 # =========================
@@ -207,73 +216,6 @@ def cor_produtividade_html(valor):
     else:
         return "background-color:#ff0000;color:white;font-weight:bold;text-align:center;"
 
-
-def renderizar_matriz_produtividade_html(matriz_formatada, titulo_area=""):
-    html = """
-    <style>
-        .tabela-prod {
-            border-collapse: collapse;
-            width: 100%;
-            font-family: Arial, sans-serif;
-            font-size: 13px;
-            text-align: center;
-        }
-
-        .tabela-prod th {
-            background-color: #666666;
-            color: white;
-            border: 1px solid black;
-            padding: 5px;
-            font-weight: bold;
-        }
-
-        .tabela-prod td {
-            border: 1px solid black;
-            padding: 4px;
-        }
-
-        .tabela-prod .tecnico {
-            text-align: left;
-            font-weight: bold;
-            background-color: #f2f2f2;
-            color: black;
-        }
-
-        .tabela-prod .total {
-            font-weight: bold;
-            background-color: #666666 !important;
-            color: white !important;
-        }
-    </style>
-    """
-
-    html += "<table class='tabela-prod'>"
-
-    html += "<tr>"
-    html += "<th>TÉCNICO</th>"
-    for coluna in matriz_formatada.columns:
-        html += f"<th>{coluna}</th>"
-    html += "</tr>"
-
-    for tecnico, linha in matriz_formatada.iterrows():
-        classe_tecnico = "tecnico total" if str(tecnico).upper() == "TOTAL" else "tecnico"
-
-        html += "<tr>"
-        html += f"<td class='{classe_tecnico}'>{tecnico}</td>"
-
-        for valor in linha:
-            estilo = cor_produtividade_html(valor)
-
-            if str(tecnico).upper() == "TOTAL":
-                estilo += "font-weight:bold;"
-
-            html += f"<td style='{estilo}'>{valor}</td>"
-
-        html += "</tr>"
-
-    html += "</table>"
-
-    return html
 
 # =========================
 # NAVEGAÇÃO
@@ -842,6 +784,10 @@ if pagina == "Produtividade":
 
     st.title("📊 Produtividade")
 
+    if AgGrid is None:
+        st.error("A biblioteca streamlit-aggrid não está instalada. Adicione streamlit-aggrid no requirements.txt e faça commit.")
+        st.stop()
+
     col_recurso = encontrar_coluna_por_nome(df, nome_exato="Recurso") or encontrar_coluna_por_nome(df, contem="recurso")
     col_status = encontrar_coluna_por_nome(df, nome_exato="Status") or encontrar_coluna_por_nome(df, contem="status")
     col_data = encontrar_coluna_por_nome(df, nome_exato="Data") or encontrar_coluna_por_nome(df, contem="data")
@@ -924,7 +870,7 @@ if pagina == "Produtividade":
     st.markdown("## 📅 Matriz de Produtividade por Técnico x Dia")
 
     df_prod["_DIA_DATA"] = df_prod["_DATA"].dt.date
-    df_prod["_DIA_LABEL"] = df_prod["_DATA"].dt.strftime("%d/%b").str.lower()
+    df_prod["_DIA_LABEL"] = df_prod["_DATA"].dt.strftime("%d/%m")
 
     dias_ordenados = (
         df_prod[["_DIA_DATA", "_DIA_LABEL"]]
@@ -935,7 +881,7 @@ if pagina == "Produtividade":
 
     agrupado = (
         df_prod
-        .groupby(["_TECNICO", "_DIA_LABEL"])
+        .groupby(["_AREA_PADRAO", "_TECNICO", "_DIA_LABEL"])
         .agg(
             Recebidas=("_TIPO", "count"),
             Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
@@ -946,7 +892,7 @@ if pagina == "Produtividade":
     agrupado["Produtividade"] = agrupado["Concluidas"] / agrupado["Recebidas"]
 
     matriz = agrupado.pivot_table(
-        index="_TECNICO",
+        index=["_AREA_PADRAO", "_TECNICO"],
         columns="_DIA_LABEL",
         values="Produtividade",
         aggfunc="mean"
@@ -961,6 +907,44 @@ if pagina == "Produtividade":
             lambda x: "SEM ATV" if pd.isna(x) else f"{x * 100:.0f}%"
         )
 
+    total_tecnico = (
+        df_prod
+        .groupby(["_AREA_PADRAO", "_TECNICO"])
+        .agg(
+            Recebidas=("_TIPO", "count"),
+            Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
+        )
+        .reset_index()
+    )
+
+    total_tecnico["Total"] = total_tecnico.apply(
+        lambda linha: "SEM ATV" if linha["Recebidas"] == 0 else f"{(linha['Concluidas'] / linha['Recebidas']) * 100:.0f}%",
+        axis=1
+    )
+
+    matriz_interativa = matriz_formatada.reset_index()
+    matriz_interativa = matriz_interativa.rename(
+        columns={
+            "_AREA_PADRAO": "Área",
+            "_TECNICO": "Técnico"
+        }
+    )
+
+    matriz_interativa = matriz_interativa.merge(
+        total_tecnico[["_AREA_PADRAO", "_TECNICO", "Total"]].rename(
+            columns={
+                "_AREA_PADRAO": "Área",
+                "_TECNICO": "Técnico"
+            }
+        ),
+        on=["Área", "Técnico"],
+        how="left"
+    )
+
+    cols_finais = ["Área", "Técnico"] + dias_ordenados + ["Total"]
+    matriz_interativa = matriz_interativa[cols_finais]
+
+    # Linha total por dia
     total_diario = (
         agrupado
         .groupby("_DIA_LABEL")
@@ -971,12 +955,10 @@ if pagina == "Produtividade":
         .reset_index()
     )
 
-    total_diario["Produtividade"] = total_diario.apply(
-        lambda linha: linha["Concluidas"] / linha["Recebidas"] if linha["Recebidas"] else None,
-        axis=1
-    )
-
-    total_row = {}
+    total_row = {
+        "Área": "Total",
+        "Técnico": "Total"
+    }
 
     for dia in dias_ordenados:
         linha_dia = total_diario[total_diario["_DIA_LABEL"] == dia]
@@ -984,24 +966,120 @@ if pagina == "Produtividade":
         if linha_dia.empty:
             total_row[dia] = "SEM ATV"
         else:
-            valor = linha_dia["Produtividade"].iloc[0]
-            total_row[dia] = "SEM ATV" if pd.isna(valor) else f"{valor * 100:.0f}%"
+            rec = linha_dia["Recebidas"].iloc[0]
+            con = linha_dia["Concluidas"].iloc[0]
+            total_row[dia] = "SEM ATV" if rec == 0 else f"{(con / rec) * 100:.0f}%"
 
-    matriz_formatada.loc["TOTAL"] = pd.Series(total_row)
+    total_row["Total"] = f"{produtividade_geral * 100:.0f}%" if total_recebidas else "SEM ATV"
 
-    html_matriz = renderizar_matriz_produtividade_html(matriz_formatada)
-
-    st.markdown(
-        html_matriz,
-        unsafe_allow_html=True
+    matriz_interativa = pd.concat(
+        [matriz_interativa, pd.DataFrame([total_row])],
+        ignore_index=True
     )
+
+    dias_para_detalhe = ["Todos"] + dias_ordenados
+
+    dia_detalhe = st.selectbox(
+        "Dia para detalhar a linha selecionada",
+        dias_para_detalhe,
+        index=1 if len(dias_para_detalhe) > 1 else 0
+    )
+
+    cell_style_jscode = JsCode("""
+    function(params) {
+        if (params.value === 'SEM ATV') {
+            return {'backgroundColor': '#808080', 'color': 'white', 'fontWeight': 'bold', 'textAlign': 'center'};
+        }
+
+        if (params.value === undefined || params.value === null) {
+            return {'textAlign': 'center'};
+        }
+
+        let value = String(params.value).replace('%','').replace(',','.');
+        let number = parseFloat(value);
+
+        if (isNaN(number)) {
+            return {'textAlign': 'center'};
+        }
+
+        if (number >= 80) {
+            return {'backgroundColor': '#00b050', 'color': 'white', 'fontWeight': 'bold', 'textAlign': 'center'};
+        } else if (number >= 50) {
+            return {'backgroundColor': '#ffff00', 'color': 'black', 'fontWeight': 'bold', 'textAlign': 'center'};
+        } else {
+            return {'backgroundColor': '#ff0000', 'color': 'white', 'fontWeight': 'bold', 'textAlign': 'center'};
+        }
+    }
+    """)
+
+    gb = GridOptionsBuilder.from_dataframe(matriz_interativa)
+    gb.configure_selection(selection_mode="single", use_checkbox=False)
+    gb.configure_default_column(resizable=True, sortable=True, filter=True)
+
+    gb.configure_column("Área", pinned="left", width=95)
+    gb.configure_column("Técnico", pinned="left", width=260)
+
+    for col in dias_ordenados + ["Total"]:
+        gb.configure_column(
+            col,
+            width=78,
+            cellStyle=cell_style_jscode
+        )
+
+    grid_options = gb.build()
+
+    grid_response = AgGrid(
+        matriz_interativa,
+        gridOptions=grid_options,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=False,
+        height=520,
+        theme="alpine",
+        key="matriz_produtividade_interativa"
+    )
+
+    selected_rows = grid_response.get("selected_rows", [])
+
+    tecnico_selecionado = None
+    area_selecionada = None
+
+    if isinstance(selected_rows, pd.DataFrame):
+        if not selected_rows.empty:
+            area_selecionada = selected_rows.iloc[0].get("Área")
+            tecnico_selecionado = selected_rows.iloc[0].get("Técnico")
+    elif isinstance(selected_rows, list):
+        if len(selected_rows) > 0:
+            area_selecionada = selected_rows[0].get("Área")
+            tecnico_selecionado = selected_rows[0].get("Técnico")
 
     st.divider()
 
     st.markdown("## 📋 Detalhamento por Tipo de Atividade")
 
-    detalhe = (
-        df_prod
+    df_detalhe_base = df_prod.copy()
+
+    if tecnico_selecionado and str(tecnico_selecionado).upper() != "TOTAL":
+        df_detalhe_base = df_detalhe_base[df_detalhe_base["_TECNICO"] == tecnico_selecionado]
+
+    if area_selecionada and str(area_selecionada).upper() != "TOTAL":
+        df_detalhe_base = df_detalhe_base[df_detalhe_base["_AREA_PADRAO"] == area_selecionada]
+
+    if dia_detalhe != "Todos":
+        df_detalhe_base = df_detalhe_base[df_detalhe_base["_DIA_LABEL"] == dia_detalhe]
+
+    if tecnico_selecionado:
+        st.info(
+            f"Filtro aplicado: Técnico **{tecnico_selecionado}**"
+            + (f" | Área **{area_selecionada}**" if area_selecionada else "")
+            + (f" | Dia **{dia_detalhe}**" if dia_detalhe != "Todos" else "")
+        )
+    else:
+        st.warning("Selecione uma linha na matriz para filtrar o detalhamento. Se nenhum técnico for selecionado, o detalhamento mostra todos os registros filtrados.")
+
+    resumo_tipo = (
+        df_detalhe_base
         .groupby(["_AREA_PADRAO", "_TECNICO", "_DIA_LABEL", "_TIPO"])
         .agg(
             Recebidas=("_TIPO", "count"),
@@ -1010,16 +1088,16 @@ if pagina == "Produtividade":
         .reset_index()
     )
 
-    detalhe["Produtividade"] = detalhe.apply(
+    resumo_tipo["Produtividade"] = resumo_tipo.apply(
         lambda linha: linha["Concluidas"] / linha["Recebidas"] if linha["Recebidas"] else 0,
         axis=1
     )
 
-    detalhe["Produtividade"] = detalhe["Produtividade"].apply(
+    resumo_tipo["Produtividade"] = resumo_tipo["Produtividade"].apply(
         lambda x: f"{x * 100:.0f}%"
     )
 
-    detalhe = detalhe.rename(
+    resumo_tipo = resumo_tipo.rename(
         columns={
             "_AREA_PADRAO": "Área",
             "_TECNICO": "Técnico",
@@ -1028,11 +1106,46 @@ if pagina == "Produtividade":
         }
     )
 
+    st.markdown("### Resumo por Tipo de Atividade")
+
     st.dataframe(
-        detalhe,
+        resumo_tipo,
         use_container_width=True,
-        height=450
+        height=260
     )
+
+    st.markdown("### Atividades Detalhadas")
+
+    colunas_detalhe_possiveis = [
+        "DIA",
+        "Recurso",
+        "ÁREA",
+        "ID Helix",
+        "Tipo de Atividade",
+        "Status",
+        "Início",
+        "Fim",
+        "Duração",
+        "Tempo de Deslocamento",
+        "Task ID Incident",
+        "Resolução",
+        "Causa 1"
+    ]
+
+    colunas_existentes = [c for c in colunas_detalhe_possiveis if c in df_detalhe_base.columns]
+
+    if colunas_existentes:
+        st.dataframe(
+            df_detalhe_base[colunas_existentes],
+            use_container_width=True,
+            height=360
+        )
+    else:
+        st.dataframe(
+            df_detalhe_base,
+            use_container_width=True,
+            height=360
+        )
 
     st.divider()
 
@@ -1049,7 +1162,7 @@ if pagina == "Produtividade":
     )
 
     ranking["Produtividade"] = ranking["Concluidas"] / ranking["Recebidas"]
-    ranking = ranking.sort_values("Produtividade", ascending=True).tail(15)
+    ranking = ranking.sort_values("Produtividade", ascending=True).tail(10)
 
     fig_rank = px.bar(
         ranking,
@@ -1062,14 +1175,20 @@ if pagina == "Produtividade":
     )
 
     fig_rank.update_layout(
-        height=500,
+        height=330,
         showlegend=False,
         coloraxis_showscale=False,
         xaxis_title=None,
         yaxis_title=None,
-        xaxis=dict(showgrid=False, visible=False),
+        bargap=0.45,
+        xaxis=dict(showgrid=False, visible=False, range=[0, 1]),
         yaxis=dict(showgrid=False),
-        margin=dict(l=10, r=10, t=30, b=30)
+        margin=dict(l=10, r=10, t=20, b=20)
+    )
+
+    fig_rank.update_traces(
+        textposition="inside",
+        marker_line_width=0
     )
 
     st.plotly_chart(fig_rank, use_container_width=True, key="ranking_produtividade")
