@@ -14,6 +14,7 @@ except Exception:
     DataReturnMode = None
     JsCode = None
 
+
 # =========================
 # CONFIGURAÇÃO
 # =========================
@@ -33,6 +34,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 # =========================
 # LOGIN
@@ -79,6 +81,7 @@ def verificar_login():
 
 verificar_login()
 
+
 # =========================
 # CONSTANTES
 # =========================
@@ -91,6 +94,7 @@ TECNICOS_NOTURNO_AREA = {
     "rafael lopes vieira": "SP3",
     "renato monteiro soares": "SP4"
 }
+
 
 # =========================
 # FUNÇÕES GERAIS
@@ -198,25 +202,6 @@ def normalizar_area(valor, recurso=None):
     return area
 
 
-def cor_produtividade_html(valor):
-    valor = str(valor)
-
-    if valor == "SEM ATV":
-        return "background-color:#808080;color:white;font-weight:bold;text-align:center;"
-
-    try:
-        numero = float(valor.replace("%", "").replace(",", "."))
-    except Exception:
-        return "text-align:center;"
-
-    if numero >= 80:
-        return "background-color:#00b050;color:white;font-weight:bold;text-align:center;"
-    elif numero >= 50:
-        return "background-color:#ffff00;color:black;font-weight:bold;text-align:center;"
-    else:
-        return "background-color:#ff0000;color:white;font-weight:bold;text-align:center;"
-
-
 # =========================
 # NAVEGAÇÃO
 # =========================
@@ -230,6 +215,7 @@ pagina = st.sidebar.radio(
         "Produtividade"
     ]
 )
+
 
 # =========================
 # CARREGAR ARQUIVO
@@ -252,6 +238,7 @@ except Exception as e:
     st.error("Erro ao carregar a aba ANALÍTICO TOA.")
     st.exception(e)
     st.stop()
+
 
 # =========================
 # CÁLCULO WFM JUN
@@ -535,6 +522,7 @@ def gerar_validacao_indicadores_jun(df_base):
         linhas.extend(linhas_indicador)
 
     return pd.DataFrame(linhas)
+
 
 # =========================
 # HISTÓRICO WFM JAN-MAI
@@ -944,7 +932,6 @@ if pagina == "Produtividade":
     cols_finais = ["Área", "Técnico"] + dias_ordenados + ["Total"]
     matriz_interativa = matriz_interativa[cols_finais]
 
-    # Linha total por dia
     total_diario = (
         agrupado
         .groupby("_DIA_LABEL")
@@ -1069,6 +1056,10 @@ if pagina == "Produtividade":
     if dia_detalhe != "Todos":
         df_detalhe_base = df_detalhe_base[df_detalhe_base["_DIA_LABEL"] == dia_detalhe]
 
+    recebidas_det = len(df_detalhe_base)
+    concluidas_det = (df_detalhe_base["_STATUS_NORM"] == "concluida").sum()
+    produtividade_det = concluidas_det / recebidas_det if recebidas_det else 0
+
     if tecnico_selecionado:
         st.info(
             f"Filtro aplicado: Técnico **{tecnico_selecionado}**"
@@ -1076,11 +1067,22 @@ if pagina == "Produtividade":
             + (f" | Dia **{dia_detalhe}**" if dia_detalhe != "Todos" else "")
         )
     else:
-        st.warning("Selecione uma linha na matriz para filtrar o detalhamento. Se nenhum técnico for selecionado, o detalhamento mostra todos os registros filtrados.")
+        st.warning(
+            "Selecione uma linha na matriz para filtrar o detalhamento. "
+            "Se nenhum técnico for selecionado, o detalhamento mostra todos os registros filtrados."
+        )
+
+    card1, card2, card3 = st.columns(3)
+
+    criar_card(card1, "Recebidas no filtro", recebidas_det, "#1e293b")
+    criar_card(card2, "Concluídas no filtro", concluidas_det, "#065f46")
+    criar_card(card3, "Produtividade no filtro", f"{produtividade_det * 100:.0f}%", "#1e40af")
+
+    st.markdown("### Resumo por Tipo de Atividade")
 
     resumo_tipo = (
         df_detalhe_base
-        .groupby(["_AREA_PADRAO", "_TECNICO", "_DIA_LABEL", "_TIPO"])
+        .groupby(["_TIPO"])
         .agg(
             Recebidas=("_TIPO", "count"),
             Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
@@ -1099,53 +1101,50 @@ if pagina == "Produtividade":
 
     resumo_tipo = resumo_tipo.rename(
         columns={
-            "_AREA_PADRAO": "Área",
-            "_TECNICO": "Técnico",
-            "_DIA_LABEL": "Dia",
             "_TIPO": "Tipo de Atividade"
         }
     )
 
-    st.markdown("### Resumo por Tipo de Atividade")
-
     st.dataframe(
         resumo_tipo,
         use_container_width=True,
-        height=260
+        height=220
     )
 
-    st.markdown("### Atividades Detalhadas")
+    with st.expander("🔎 Ver atividades detalhadas"):
+        colunas_detalhe_possiveis = [
+            "DIA",
+            "Recurso",
+            "ÁREA",
+            "ID Helix",
+            "Tipo de Atividade",
+            "Status",
+            "Início",
+            "Fim",
+            "Duração",
+            "Tempo de Deslocamento",
+            "Task ID Incident",
+            "Resolução",
+            "Causa 1"
+        ]
 
-    colunas_detalhe_possiveis = [
-        "DIA",
-        "Recurso",
-        "ÁREA",
-        "ID Helix",
-        "Tipo de Atividade",
-        "Status",
-        "Início",
-        "Fim",
-        "Duração",
-        "Tempo de Deslocamento",
-        "Task ID Incident",
-        "Resolução",
-        "Causa 1"
-    ]
+        colunas_existentes = [
+            c for c in colunas_detalhe_possiveis
+            if c in df_detalhe_base.columns
+        ]
 
-    colunas_existentes = [c for c in colunas_detalhe_possiveis if c in df_detalhe_base.columns]
-
-    if colunas_existentes:
-        st.dataframe(
-            df_detalhe_base[colunas_existentes],
-            use_container_width=True,
-            height=360
-        )
-    else:
-        st.dataframe(
-            df_detalhe_base,
-            use_container_width=True,
-            height=360
-        )
+        if colunas_existentes:
+            st.dataframe(
+                df_detalhe_base[colunas_existentes],
+                use_container_width=True,
+                height=360
+            )
+        else:
+            st.dataframe(
+                df_detalhe_base,
+                use_container_width=True,
+                height=360
+            )
 
     st.divider()
 
@@ -1181,9 +1180,13 @@ if pagina == "Produtividade":
         xaxis_title=None,
         yaxis_title=None,
         bargap=0.45,
-        xaxis=dict(showgrid=False, visible=False, range=[0, 1]),
+        xaxis=dict(
+            showgrid=False,
+            visible=False,
+            range=[0, 1.25]
+        ),
         yaxis=dict(showgrid=False),
-        margin=dict(l=10, r=10, t=20, b=20)
+        margin=dict(l=10, r=220, t=20, b=20)
     )
 
     fig_rank.update_traces(
