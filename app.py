@@ -188,6 +188,93 @@ def normalizar_area(valor, recurso=None):
 
     return area
 
+
+def cor_produtividade_html(valor):
+    valor = str(valor)
+
+    if valor == "SEM ATV":
+        return "background-color:#808080;color:white;font-weight:bold;text-align:center;"
+
+    try:
+        numero = float(valor.replace("%", "").replace(",", "."))
+    except Exception:
+        return "text-align:center;"
+
+    if numero >= 80:
+        return "background-color:#00b050;color:white;font-weight:bold;text-align:center;"
+    elif numero >= 50:
+        return "background-color:#ffff00;color:black;font-weight:bold;text-align:center;"
+    else:
+        return "background-color:#ff0000;color:white;font-weight:bold;text-align:center;"
+
+
+def renderizar_matriz_produtividade_html(matriz_formatada, titulo_area=""):
+    html = """
+    <style>
+        .tabela-prod {
+            border-collapse: collapse;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .tabela-prod th {
+            background-color: #666666;
+            color: white;
+            border: 1px solid black;
+            padding: 5px;
+            font-weight: bold;
+        }
+
+        .tabela-prod td {
+            border: 1px solid black;
+            padding: 4px;
+        }
+
+        .tabela-prod .tecnico {
+            text-align: left;
+            font-weight: bold;
+            background-color: #f2f2f2;
+            color: black;
+        }
+
+        .tabela-prod .total {
+            font-weight: bold;
+            background-color: #666666 !important;
+            color: white !important;
+        }
+    </style>
+    """
+
+    html += "<table class='tabela-prod'>"
+
+    html += "<tr>"
+    html += "<th>TÉCNICO</th>"
+    for coluna in matriz_formatada.columns:
+        html += f"<th>{coluna}</th>"
+    html += "</tr>"
+
+    for tecnico, linha in matriz_formatada.iterrows():
+        classe_tecnico = "tecnico total" if str(tecnico).upper() == "TOTAL" else "tecnico"
+
+        html += "<tr>"
+        html += f"<td class='{classe_tecnico}'>{tecnico}</td>"
+
+        for valor in linha:
+            estilo = cor_produtividade_html(valor)
+
+            if str(tecnico).upper() == "TOTAL":
+                estilo += "font-weight:bold;"
+
+            html += f"<td style='{estilo}'>{valor}</td>"
+
+        html += "</tr>"
+
+    html += "</table>"
+
+    return html
+
 # =========================
 # NAVEGAÇÃO
 # =========================
@@ -812,7 +899,7 @@ if pagina == "Produtividade":
             [data_min.date(), data_max.date()]
         )
 
-        if isinstance(periodo, list) and len(periodo) == 2:
+        if isinstance(periodo, (list, tuple)) and len(periodo) == 2:
             data_ini = pd.to_datetime(periodo[0])
             data_fim = pd.to_datetime(periodo[1])
             df_prod = df_prod[
@@ -836,11 +923,19 @@ if pagina == "Produtividade":
 
     st.markdown("## 📅 Matriz de Produtividade por Técnico x Dia")
 
+    df_prod["_DIA_DATA"] = df_prod["_DATA"].dt.date
     df_prod["_DIA_LABEL"] = df_prod["_DATA"].dt.strftime("%d/%b").str.lower()
+
+    dias_ordenados = (
+        df_prod[["_DIA_DATA", "_DIA_LABEL"]]
+        .drop_duplicates()
+        .sort_values("_DIA_DATA")["_DIA_LABEL"]
+        .tolist()
+    )
 
     agrupado = (
         df_prod
-        .groupby(["_AREA_PADRAO", "_TECNICO", "_DIA_LABEL"])
+        .groupby(["_TECNICO", "_DIA_LABEL"])
         .agg(
             Recebidas=("_TIPO", "count"),
             Concluidas=("_STATUS_NORM", lambda x: (x == "concluida").sum())
@@ -857,6 +952,8 @@ if pagina == "Produtividade":
         aggfunc="mean"
     )
 
+    matriz = matriz.reindex(columns=dias_ordenados)
+
     matriz_formatada = matriz.copy()
 
     for col in matriz_formatada.columns:
@@ -864,34 +961,40 @@ if pagina == "Produtividade":
             lambda x: "SEM ATV" if pd.isna(x) else f"{x * 100:.0f}%"
         )
 
-    def cor_produtividade(valor):
-        if valor == "SEM ATV":
-            return "background-color: #808080; color: white; font-weight: bold; text-align: center;"
+    total_diario = (
+        agrupado
+        .groupby("_DIA_LABEL")
+        .agg(
+            Recebidas=("Recebidas", "sum"),
+            Concluidas=("Concluidas", "sum")
+        )
+        .reset_index()
+    )
 
-        try:
-            numero = float(str(valor).replace("%", "").replace(",", "."))
-        except Exception:
-            return ""
+    total_diario["Produtividade"] = total_diario.apply(
+        lambda linha: linha["Concluidas"] / linha["Recebidas"] if linha["Recebidas"] else None,
+        axis=1
+    )
 
-        if numero >= 80:
-            return "background-color: #00b050; color: white; font-weight: bold; text-align: center;"
-        elif numero >= 50:
-            return "background-color: #ffff00; color: black; font-weight: bold; text-align: center;"
+    total_row = {}
+
+    for dia in dias_ordenados:
+        linha_dia = total_diario[total_diario["_DIA_LABEL"] == dia]
+
+        if linha_dia.empty:
+            total_row[dia] = "SEM ATV"
         else:
-            return "background-color: #ff0000; color: white; font-weight: bold; text-align: center;"
+            valor = linha_dia["Produtividade"].iloc[0]
+            total_row[dia] = "SEM ATV" if pd.isna(valor) else f"{valor * 100:.0f}%"
 
-   styler_matriz = matriz_formatada.style
+    matriz_formatada.loc["TOTAL"] = pd.Series(total_row)
 
-try:
-    styler_matriz = styler_matriz.map(cor_produtividade)
-except AttributeError:
-    styler_matriz = styler_matriz.applymap(cor_produtividade)
+    html_matriz = renderizar_matriz_produtividade_html(matriz_formatada)
 
-st.dataframe(
-    styler_matriz,
-    use_container_width=True,
-    height=520
-)
+    st.markdown(
+        html_matriz,
+        unsafe_allow_html=True
+    )
 
     st.divider()
 
